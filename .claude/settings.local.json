@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(bash:*)",
+      "Bash(curl:*)",
+      "Bash(timeout 5 python3 main.py)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

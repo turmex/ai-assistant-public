@@ -1,0 +1,43 @@
+INSTALLATION
+Dependencies - homebrew, ollama
+
+Install homebred
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+Install ollama
+brew install ollama
+
+
+RUNNING MANUAL
+- Step 1 - run llama in virtual env
+
+(base) davidcelekli@Davids-MacBook-Pro ~ % cd ~/Desktop/ai-assistant
+(base) davidcelekli@Davids-MacBook-Pro ai-assistant % cd backend               
+(base) davidcelekli@Davids-MacBook-Pro backend % source venv/bin/activate 
+(venv) (base) davidcelekli@Davids-MacBook-Pro backend % ollama serve
+
+- Step 2 - run main.py on separate terminal in virtual env
+
+(base) davidcelekli@Davids-MacBook-Pro ~ % cd ~/Desktop/ai-assistant
+(base) davidcelekli@Davids-MacBook-Pro ai-assistant % cd backend               
+(base) davidcelekli@Davids-MacBook-Pro backend % source venv/bin/activate 
+(venv) (base) davidcelekli@Davids-MacBook-Pro backend % python main.py
+
+
+- Step 3 - on a third terminal - run localhost in virtual env
+
+(base) davidcelekli@Davids-MacBook-Pro ~ % cd ~/Desktop/ai-assistant
+(base) davidcelekli@Davids-MacBook-Pro ai-assistant % cd backend               
+(base) davidcelekli@Davids-MacBook-Pro backend % source venv/bin/activate 
+(venv) (base) davidcelekli@Davids-MacBook-Pro backend % cd ~/Desktop/ai-assistant
+(venv) (base) davidcelekli@Davids-MacBook-Pro ai-assistant % cd frontend
+python -m http.server 5173
+
+In default browser, open = http://localhost:5173/index.html
+
+
+RUN AUTOMATICALLY
+First run - in terminal write:
+chmod +x ~/Desktop/ai-assistant/Run-AI-Assistant-Tabs-Fix.command  
+
+Then you can open by clicking the .command file
