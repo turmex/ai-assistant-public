@@ -1,0 +1,933 @@
+# AI Assistant Project Specification
+# Auto-generated from codebase analysis on 2024-10-13
+
+project:
+  name: ai-assistant-public
+  version: 0.1.0
+  repository: https://github.com/turmex/ai-assistant-public
+  type: local-first-ai-assistant
+  description: Privacy-focused AI assistant with hardware-aware LLM selection
+
+languages:
+  - python
+  - javascript
+  - html
+  - css
+
+stack:
+  backend:
+    framework: FastAPI
+    version: 0.109.0
+    server: Uvicorn
+    server_version: 0.27.0
+    orm: SQLAlchemy
+    orm_version: 2.0.25
+    database: SQLite
+    database_file: ai_assistant.db
+    python_version: "3.8+"
+    python_recommended: "3.10+"
+    validation: Pydantic
+    validation_version: 2.5.3
+    http_client: httpx
+    http_client_version: 0.26.0
+
+  frontend:
+    framework: vanilla-js
+    html_version: HTML5
+    styling: Tailwind-CSS
+    styling_version: "3.x"
+    styling_source: CDN
+    file: frontend/index.html
+    lines_of_code: 543
+
+  llm:
+    engine: Ollama
+    host: localhost
+    port: 11434
+    base_url: http://localhost:11434
+    models:
+      - name: llama3.2:1b
+        size_gb: 1.3
+        quality: basic
+        recommended_ram: 4
+      - name: llama3.2:3b
+        size_gb: 2.0
+        quality: medium
+        recommended_ram: 4
+      - name: phi3:mini
+        size_gb: 2.3
+        quality: medium
+        recommended_ram: 5
+      - name: mistral:7b
+        size_gb: 4.1
+        quality: high
+        recommended_ram: 9
+      - name: llama3.1:8b
+        size_gb: 4.7
+        quality: high
+        recommended_ram: 10
+        recommended: true
+      - name: gemma2:9b
+        size_gb: 5.5
+        quality: high
+        recommended_ram: 11
+      - name: llama3.2:11b
+        size_gb: 6.5
+        quality: high
+        recommended_ram: 13
+      - name: codellama:13b
+        size_gb: 7.4
+        quality: high
+        recommended_ram: 15
+
+components:
+  - name: main
+    file: backend/main.py
+    type: api-server
+    lines_of_code: 650
+    dependencies:
+      - database
+      - hardware_detector
+      - conversation_manager
+      - httpx
+      - FastAPI
+    endpoints:
+      - method: GET
+        path: /
+        description: Service information
+        response: JSON
+      - method: GET
+        path: /health
+        description: Health check (Ollama, DB, hardware)
+        response: HealthResponse
+      - method: GET
+        path: /hardware
+        description: Hardware specs and compatible models
+        response: JSON
+      - method: GET
+        path: /models
+        description: List downloaded models
+        response: ModelsResponse
+      - method: GET
+        path: /models/available
+        description: List hardware-compatible models
+        response: JSON
+      - method: GET
+        path: /models/downloaded
+        description: List locally available models
+        response: JSON
+      - method: POST
+        path: /models/download
+        description: Download model via Ollama
+        request: ModelDownloadRequest
+        response: JSON
+      - method: POST
+        path: /chat
+        description: Send message, get AI response
+        request: ChatRequest
+        response: ChatResponse
+        timeout: 120s
+      - method: GET
+        path: /conversations
+        description: List user conversations
+        query_params:
+          - name: limit
+            type: int
+            default: 20
+        response: JSON
+      - method: POST
+        path: /conversations/new
+        description: Create new conversation
+        response: JSON
+      - method: GET
+        path: /conversations/{id}
+        description: Get conversation history
+        path_params:
+          - name: id
+            type: str
+            description: Conversation UUID
+        response: JSON
+      - method: DELETE
+        path: /conversations/{id}
+        description: Delete conversation
+        path_params:
+          - name: id
+            type: str
+            description: Conversation UUID
+        response: JSON
+    features:
+      - Multi-fallback chat strategy (3 tiers)
+      - Context sanitization for Ollama
+      - Hardware-aware model selection
+      - Lifespan management (startup/shutdown)
+      - CORS middleware (permissive for MVP)
+      - Automatic OpenAPI/Swagger docs
+
+  - name: database
+    file: backend/database.py
+    type: data-layer
+    lines_of_code: 322
+    database:
+      engine: SQLite
+      file: ai_assistant.db
+      connection_string: sqlite:///./ai_assistant.db
+    models:
+      - name: User
+        table: users
+        fields:
+          - name: id
+            type: Integer
+            primary_key: true
+          - name: email
+            type: String
+            unique: true
+            indexed: true
+          - name: created_at
+            type: DateTime
+            default: utcnow
+        relationships:
+          - tool_connections
+          - workflows
+          - conversations
+        status: future-ready (MVP uses default user)
+
+      - name: ToolConnection
+        table: tool_connections
+        fields:
+          - name: id
+            type: Integer
+            primary_key: true
+          - name: user_id
+            type: Integer
+            foreign_key: users.id
+          - name: service_name
+            type: String
+            values: [gmail, calendar, salesforce]
+          - name: display_name
+            type: String
+          - name: is_connected
+            type: Boolean
+          - name: auth_data
+            type: Text
+            description: Encrypted OAuth tokens
+          - name: last_connected
+            type: DateTime
+          - name: created_at
+            type: DateTime
+          - name: updated_at
+            type: DateTime
+        indexes:
+          - [user_id, service_name]
+        status: schema-ready (Phase 2)
+
+      - name: Workflow
+        table: workflows
+        fields:
+          - name: id
+            type: Integer
+            primary_key: true
+          - name: user_id
+            type: Integer
+            foreign_key: users.id
+          - name: name
+            type: String
+          - name: description
+            type: Text
+          - name: trigger
+            type: JSON
+            schema: "{type: schedule/manual/event, config: {...}}"
+          - name: actions
+            type: JSON
+            schema: "[{tool: gmail, action: send, params: {...}}]"
+          - name: is_active
+            type: Boolean
+          - name: use_local_llm
+            type: Boolean
+          - name: created_at
+            type: DateTime
+          - name: updated_at
+            type: DateTime
+          - name: last_run
+            type: DateTime
+        relationships:
+          - executions
+        indexes:
+          - [user_id, is_active]
+        status: schema-ready (Phase 3)
+
+      - name: WorkflowExecution
+        table: workflow_executions
+        fields:
+          - name: id
+            type: Integer
+            primary_key: true
+          - name: workflow_id
+            type: Integer
+            foreign_key: workflows.id
+          - name: status
+            type: String
+            values: [pending, running, success, failed]
+          - name: started_at
+            type: DateTime
+          - name: completed_at
+            type: DateTime
+          - name: actions_executed
+            type: JSON
+          - name: results
+            type: JSON
+          - name: error_message
+            type: Text
+          - name: model_used
+            type: String
+          - name: tokens_used
+            type: Integer
+        indexes:
+          - [workflow_id, status]
+          - [started_at]
+        status: schema-ready (Phase 3)
+
+      - name: Conversation
+        table: conversations
+        fields:
+          - name: id
+            type: Integer
+            primary_key: true
+          - name: user_id
+            type: Integer
+            foreign_key: users.id
+          - name: conversation_id
+            type: String
+            unique: true
+            indexed: true
+            description: UUID
+          - name: messages
+            type: JSON
+            schema: "[{role: user/assistant, content: str, timestamp: ISO8601, metadata: {...}}]"
+          - name: created_at
+            type: DateTime
+          - name: updated_at
+            type: DateTime
+        indexes:
+          - [user_id]
+          - [updated_at]
+        status: active (MVP)
+    functions:
+      - name: init_db
+        description: Create all tables
+      - name: get_db
+        description: FastAPI dependency for session management
+        returns: Generator[Session]
+      - name: get_or_create_user
+        description: Get/create default user for MVP
+        default_email: default@local
+
+  - name: hardware_detector
+    file: backend/hardware_detector.py
+    type: utility
+    lines_of_code: 415
+    purpose: Mac hardware detection and model recommendations
+    pattern: Singleton
+    detection:
+      chip_type:
+        method: platform.machine()
+        values: [arm64, x86_64]
+        maps_to: [Apple Silicon, Intel]
+      chip_model:
+        method: sysctl -n machdep.cpu.brand_string
+        examples: [M1, M2, M2 Pro, M2 Max, M3, M3 Ultra, Intel Core i7]
+      ram_gb:
+        method: sysctl -n hw.memsize
+        unit: bytes
+        converts_to: GB
+      cpu_cores:
+        method: sysctl -n hw.physicalcpu
+        returns: int
+    algorithm:
+      steps:
+        - Filter models by RAM (need 2x model size)
+        - Calculate performance score (RAM headroom + chip type)
+        - Sort by performance → quality → size
+        - Mark best-fit as recommended
+      performance_tiers:
+        - excellent: Apple Silicon, 8GB+ headroom, ≤5GB model
+        - good: Apple Silicon, 4GB+ headroom, ≤7GB model
+        - acceptable: Any chip, 0GB+ headroom
+        - slow: Insufficient RAM headroom
+    model_catalog:
+      source: hardcoded
+      count: 8
+      location: MODEL_CATALOG constant
+      update_strategy: manual (ADR-005)
+    classes:
+      - name: HardwareInfo
+        type: dataclass
+        fields:
+          - chip_type
+          - chip_model
+          - ram_gb
+          - cpu_cores
+          - compatible_models
+          - recommended_model
+          - detection_successful
+          - error_message
+      - name: ModelInfo
+        type: dataclass
+        fields:
+          - name
+          - display_name
+          - size_gb
+          - expected_performance
+          - speed_estimate
+          - quality
+          - recommended
+          - ram_required_gb
+      - name: HardwareDetector
+        methods:
+          - detect() -> HardwareInfo
+          - _detect_chip_type() -> str
+          - _detect_chip_model() -> Optional[str]
+          - _detect_ram_gb() -> int
+          - _detect_cpu_cores() -> int
+          - _get_compatible_models() -> List[ModelInfo]
+          - _calculate_performance() -> tuple[str, str]
+    functions:
+      - name: get_hardware_detector
+        description: Get singleton instance
+        returns: HardwareDetector
+
+  - name: conversation_manager
+    file: backend/conversation_manager.py
+    type: business-logic
+    lines_of_code: 390
+    purpose: Chat state management and conversation persistence
+    pattern: Repository
+    class: ConversationManager
+    methods:
+      - name: create_conversation
+        params:
+          - user_id: Optional[int]
+        returns: Conversation
+        generates: UUID for conversation_id
+
+      - name: get_conversation
+        params:
+          - conversation_id: str
+        returns: Optional[Conversation]
+
+      - name: add_message
+        params:
+          - conversation_id: str
+          - role: str (user/assistant)
+          - content: str
+          - metadata: Optional[Dict]
+        updates: conversation.messages JSON
+        uses: flag_modified() for SQLAlchemy
+
+      - name: get_conversation_history
+        params:
+          - conversation_id: str
+          - limit: Optional[int]
+        returns: List[Dict]
+
+      - name: get_context_for_llm
+        params:
+          - conversation_id: str
+          - max_messages: int (default 10)
+        returns: List[Dict[str, str]]
+        format: "[{role: str, content: str}]"
+        strips: metadata and timestamps
+
+      - name: detect_intent
+        params:
+          - user_message: str
+          - conversation_id: Optional[str]
+        returns: Dict[intent_type, tools_needed, confidence]
+        implementation: keyword-based (MVP)
+        future: LLM-based classification (Phase 2)
+
+      - name: get_user_conversations
+        params:
+          - user_id: Optional[int]
+          - limit: int (default 20)
+        returns: List[Conversation]
+        order: updated_at DESC
+
+      - name: delete_conversation
+        params:
+          - conversation_id: str
+        returns: bool
+    functions:
+      - name: get_conversation_manager
+        params:
+          - db: Session
+        returns: ConversationManager
+        pattern: Factory
+
+  - name: frontend
+    file: frontend/index.html
+    type: single-page-application
+    lines_of_code: 543
+    technologies:
+      - HTML5
+      - Tailwind CSS (CDN)
+      - Vanilla JavaScript (ES6+)
+    features:
+      ui_components:
+        - Header with status badge
+        - Hardware info dashboard
+        - Model selector dropdown
+        - Chat container with message bubbles
+        - Message input textarea
+        - Send button
+        - Example prompts sidebar
+        - Toast notifications
+        - Download progress indicator
+      state_management:
+        - conversationId: null | string
+        - availableModels: Array
+        - downloadedModels: Array
+        - selectedModel: null | ModelInfo
+      api_client:
+        base_url: http://localhost:8000
+        default_timeout: 20000ms
+        chat_timeout: 120000ms
+        functions:
+          - fetchJSON(url, opts, timeout)
+          - updateHealthStatus()
+          - loadHardware()
+          - loadModels()
+          - sendMessage(text)
+          - downloadModel(modelName)
+      ui_functions:
+        - messageBubble({role, text, model})
+        - typingBubble()
+        - toast(msg, type)
+        - scrollToBottom(force)
+        - updateModelInfo(model)
+      styling:
+        theme: dark
+        primary_color: indigo
+        background: slate-950 to slate-800 gradient
+        animations:
+          - typing (dots)
+          - pingSoft (status badge)
+          - spin (loading)
+
+data_flow:
+  chat_message:
+    - step: 1
+      component: frontend
+      action: User types message and clicks Send
+
+    - step: 2
+      component: frontend
+      action: POST /chat with {message, conversation_id?, model?}
+      timeout: 120s
+
+    - step: 3
+      component: main.py
+      action: Receive request, validate with Pydantic
+
+    - step: 4
+      component: conversation_manager
+      action: get_conversation(id) or create_conversation()
+
+    - step: 5
+      component: conversation_manager
+      action: add_message(role="user", content=message)
+
+    - step: 6
+      component: database
+      action: UPDATE conversations SET messages=... WHERE id=...
+
+    - step: 7
+      component: conversation_manager
+      action: get_context_for_llm(conversation_id, max=10)
+
+    - step: 8
+      component: main.py
+      action: sanitize_context(messages) - validate role/content structure
+
+    - step: 9
+      component: main.py
+      action: Multi-fallback strategy
+      attempts:
+        - POST /api/chat with full context (10 messages)
+        - POST /api/chat with last user message only
+        - POST /api/generate with flattened prompt
+
+    - step: 10
+      component: ollama
+      action: Generate response with selected model
+
+    - step: 11
+      component: main.py
+      action: parse_ollama_reply(data) - extract text from various formats
+
+    - step: 12
+      component: conversation_manager
+      action: add_message(role="assistant", content=reply, metadata={model, tokens})
+
+    - step: 13
+      component: database
+      action: UPDATE conversations SET messages=..., updated_at=now()
+
+    - step: 14
+      component: main.py
+      action: Return ChatResponse(response, conversation_id, model_used, tokens)
+
+    - step: 15
+      component: frontend
+      action: Render assistant message bubble with model tag
+
+  hardware_detection:
+    - step: 1
+      component: main.py
+      action: Startup - lifespan event
+
+    - step: 2
+      component: hardware_detector
+      action: get_hardware_detector() - singleton initialization
+
+    - step: 3
+      component: hardware_detector
+      action: platform.machine() → arm64 or x86_64
+
+    - step: 4
+      component: hardware_detector
+      action: sysctl commands for chip model, RAM, cores
+
+    - step: 5
+      component: hardware_detector
+      action: _get_compatible_models() - filter MODEL_CATALOG by RAM
+
+    - step: 6
+      component: hardware_detector
+      action: _calculate_performance() for each model
+
+    - step: 7
+      component: hardware_detector
+      action: Sort models by performance → quality → size
+
+    - step: 8
+      component: hardware_detector
+      action: Mark best-fit as recommended=True
+
+    - step: 9
+      component: hardware_detector
+      action: Return HardwareInfo with compatible_models and recommended_model
+
+    - step: 10
+      component: main.py
+      action: Cache globally (singleton pattern)
+
+  model_download:
+    - step: 1
+      component: frontend
+      action: User clicks Download button for non-downloaded model
+
+    - step: 2
+      component: frontend
+      action: POST /models/download with {model_name}
+
+    - step: 3
+      component: main.py
+      action: POST /api/pull to Ollama
+
+    - step: 4
+      component: ollama
+      action: Download model from Ollama library (background)
+
+    - step: 5
+      component: main.py
+      action: Return {status: "download_started"}
+
+    - step: 6
+      component: frontend
+      action: Show "Downloading..." spinner
+
+    - step: 7
+      component: frontend
+      action: Poll GET /models/downloaded every 5 seconds
+
+    - step: 8
+      component: frontend
+      action: Detect model in list → show success toast → refresh UI
+
+dependencies:
+  backend:
+    production:
+      - package: fastapi
+        version: 0.109.0
+        purpose: Async web framework
+
+      - package: uvicorn[standard]
+        version: 0.27.0
+        purpose: ASGI server
+
+      - package: pydantic
+        version: 2.5.3
+        purpose: Data validation
+
+      - package: pydantic-settings
+        version: 2.1.0
+        purpose: Environment config
+
+      - package: sqlalchemy
+        version: 2.0.25
+        purpose: ORM
+
+      - package: httpx
+        version: 0.26.0
+        purpose: Async HTTP client
+
+      - package: python-dotenv
+        version: 1.0.0
+        purpose: .env file loading
+
+      - package: python-multipart
+        version: 0.0.6
+        purpose: File uploads (future)
+
+    future:
+      - package: alembic
+        version: 1.13.1
+        purpose: Database migrations
+        status: installed, not configured
+
+      - package: schedule
+        version: 1.2.0
+        purpose: Workflow scheduling
+        status: installed, not used
+
+      - package: cryptography
+        version: 41.0.7
+        purpose: OAuth token encryption
+        status: installed, not used
+
+  frontend:
+    - package: Tailwind CSS
+      version: 3.x
+      source: CDN
+      url: https://cdn.tailwindcss.com
+
+  external_services:
+    - service: Ollama
+      host: localhost
+      port: 11434
+      purpose: Local LLM inference
+      required: true
+
+    - service: SQLite
+      file: backend/ai_assistant.db
+      purpose: Data persistence
+      required: true
+
+environment:
+  development:
+    OLLAMA_BASE_URL: http://localhost:11434
+    DEFAULT_LOCAL_MODEL: llama3.1
+    DATABASE_URL: sqlite:///./ai_assistant.db
+    HOST: 0.0.0.0
+    PORT: 8000
+    DEBUG: true
+
+  production:
+    OLLAMA_BASE_URL: http://localhost:11434
+    DEFAULT_LOCAL_MODEL: llama3.1
+    DATABASE_URL: postgresql://user:pass@host:5432/ai_assistant
+    HOST: 0.0.0.0
+    PORT: 8000
+    DEBUG: false
+    SECRET_KEY: (generate-random-32-char-string)
+
+  future_oauth:
+    GOOGLE_CLIENT_ID: (user-provided)
+    GOOGLE_CLIENT_SECRET: (user-provided)
+    GOOGLE_REDIRECT_URI: http://localhost:8000/auth/google/callback
+    SALESFORCE_CLIENT_ID: (user-provided)
+    SALESFORCE_CLIENT_SECRET: (user-provided)
+    SALESFORCE_REDIRECT_URI: http://localhost:8000/auth/salesforce/callback
+
+architecture_patterns:
+  - pattern: Singleton
+    component: hardware_detector
+    location: hardware_detector.py:409-414
+    rationale: Hardware is immutable during runtime
+
+  - pattern: Factory
+    component: conversation_manager
+    location: conversation_manager.py:379-389
+    rationale: Decouple from database session lifecycle
+
+  - pattern: Repository
+    component: ConversationManager
+    location: conversation_manager.py:23-377
+    rationale: Abstract database operations
+
+  - pattern: Dependency Injection
+    component: FastAPI routes
+    mechanism: Depends(get_db)
+    rationale: Automatic session management
+
+  - pattern: Multi-Fallback
+    component: chat endpoint
+    location: main.py:486-512
+    strategies:
+      - /api/chat with full context
+      - /api/chat with last message
+      - /api/generate with flattened prompt
+    rationale: Reliability over single point of failure
+
+future_roadmap:
+  phase_1:
+    name: Infrastructure Foundation
+    weeks: 1-2
+    features:
+      - Documentation (completed)
+      - Testing framework (pytest)
+      - Structured logging
+      - Monitoring (Prometheus + Grafana)
+      - Code quality tools (black, ruff, mypy)
+
+  phase_2:
+    name: MCP Tool Integration
+    weeks: 3-5
+    features:
+      - OAuth framework (Google, Salesforce)
+      - MCP client setup
+      - Gmail integration
+      - Calendar integration
+      - Salesforce integration
+      - LLM-based intent detection
+
+  phase_3:
+    name: Workflow Automation
+    weeks: 6-8
+    features:
+      - Workflow engine
+      - Workflow builder UI
+      - Pre-built templates
+      - Conditional logic
+      - Approval steps
+
+  phase_4:
+    name: Cloud LLM Routing
+    weeks: 9-10
+    features:
+      - Anthropic (Claude) integration
+      - OpenAI (GPT) integration
+      - Smart routing (simple→local, complex→cloud)
+      - Cost tracking
+      - API key management
+
+  phase_5:
+    name: Multi-Agent Collaboration
+    weeks: 11-14
+    features:
+      - Multi-user authentication
+      - Organization model
+      - Agent system
+      - Agent-to-agent communication
+      - Shared knowledge base
+      - Consensus building
+
+constraints:
+  - Single-user in MVP (multi-user in Phase 5)
+  - Mac-only in MVP (Apple Silicon or Intel)
+  - Requires macOS 11.0+ (Big Sur)
+  - Requires 8GB+ RAM (16GB+ recommended)
+  - No authentication in MVP
+  - No streaming responses in MVP
+  - SQLite in MVP (PostgreSQL in Phase 5)
+  - Hardcoded model catalog (dynamic in Phase 1)
+
+system_requirements:
+  hardware:
+    platform: macOS
+    version_min: 11.0
+    cpu: Apple Silicon (M1/M2/M3) or Intel
+    ram_min: 8GB
+    ram_recommended: 16GB
+    disk_space: 10GB (for models)
+
+  software:
+    python: "3.8+"
+    python_recommended: "3.10+"
+    ollama: latest
+    browser: Modern browser with ES6+ support
+
+performance:
+  inference_speed:
+    apple_silicon:
+      excellent: 10-15 tok/s
+      good: 5-10 tok/s
+      acceptable: 2-5 tok/s
+    intel:
+      good: 5-10 tok/s
+      acceptable: 3-5 tok/s
+      slow: 1-3 tok/s
+
+  api_latency:
+    health_check: <50ms
+    hardware_info: <1ms (cached)
+    model_list: <100ms
+    chat: 2-30s (model dependent)
+
+  context_limits:
+    max_messages: 10
+    max_message_length: 10000 chars
+
+testing:
+  current:
+    - Manual API testing
+    - Frontend browser testing
+    - verify.sh script
+
+  planned:
+    framework: pytest + pytest-asyncio
+    coverage_target: 80%
+    types:
+      - Unit tests (business logic)
+      - Integration tests (database, API)
+      - E2E tests (Playwright)
+      - Load tests (Locust)
+
+documentation:
+  location: docs/
+  files:
+    - AI_QUICK_REF.md (480 tokens)
+    - ARCHITECTURE.md (2,500 tokens)
+    - API.md (1,200 tokens)
+    - DEVELOPMENT.md (1,300 tokens)
+    - CODE_STANDARDS.md (1,500 tokens)
+    - DEPENDENCIES.md (1,600 tokens)
+    - INFRASTRUCTURE.md (2,000 tokens)
+    - ROADMAP.md (1,400 tokens)
+    - DECISIONS.md (2,100 tokens)
+    - CHANGELOG.md (1,000 tokens)
+    - README.md (1,500 tokens)
+  total_tokens: ~15,080
+  optimized_for: AI assistants
+
+metrics:
+  codebase:
+    total_lines: ~1500
+    files: 6 backend + 1 frontend
+    backend_loc: 1777
+    frontend_loc: 543
+
+  api:
+    endpoints: 12
+
+  database:
+    models: 5
+    tables: 5 (4 future-ready, 1 active)
+
+  documentation:
+    files: 11
+    lines: 5554
+    pages: ~140KB
+
+license: MIT
+status: MVP (v0.1.0) - Production-ready for single-user local deployment

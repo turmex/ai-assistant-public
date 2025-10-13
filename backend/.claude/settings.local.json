@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/davidcelekli/Desktop/ai-assistant/frontend/**)",
+      "Read(//Users/davidcelekli/Desktop/ai-assistant/**)",
+      "Read(//Users/davidcelekli/Desktop/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

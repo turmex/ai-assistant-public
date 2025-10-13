@@ -17,9 +17,21 @@ FRONTEND_PORT="5173"
 [ -d "$FRONTEND_DIR" ] || { echo "❌ Missing $FRONTEND_DIR"; exit 1; }
 [ -d "$VENV_BIN" ] || { echo "❌ Missing Python venv at $VENV_BIN"; exit 1; }
 
+printf "\n\033[1m\033[36mInstalling dependencies (homebrew and ollama)\033[0m\n"
+
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+#Install ollama
+brew install ollama
+
+sleep 2
+printf "\n\033[1m\033[36mTerminate previous versions and run\033[0m\n"
+
 # from project root: ~/Desktop/ai-assistant
 pkill -f "python main.py" 2>/dev/null || true
 pkill -f "http.server 5173" 2>/dev/null || true
+
+sleep 1
 
 # Simple command strings (no quotes inside); bash -lc will interpret them in the shell
 CMD1="cd $BACKEND_DIR; source $VENV_BIN/activate; echo '⏳ Checking Ollama...'; if curl -sSf http://localhost:11434/api/tags >/dev/null 2>&1; then echo '✅ Ollama already running on 11434'; else echo '🚀 Starting Ollama on 11434...'; ollama serve; fi"
