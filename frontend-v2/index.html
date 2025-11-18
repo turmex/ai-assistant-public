@@ -1,0 +1,2204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Assistant - WebLLM & Local LLM Chat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- WebLLM for browser-based inference -->
+  <script type="module">
+    import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+    window.webllm = webllm;
+    window.webllmLoaded = true;
+    console.log('WebLLM module loaded successfully');
+    // Dispatch event when loaded
+    window.dispatchEvent(new Event('webllm-loaded'));
+  </script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ["-apple-system", "BlinkMacSystemFont", "Inter", "Segoe UI", "system-ui"]
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* Dark Mode Base */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background-color: #0a0a0a;
+      color: #e5e5e5;
+    }
+
+    .scroll-smooth { scroll-behavior: smooth; }
+
+    /* Override Tailwind colors for dark mode */
+    .bg-white { background-color: #121212 !important; }
+    .bg-gray-50 { background-color: #1a1a1a !important; }
+    .bg-gray-100 { background-color: #1f1f1f !important; }
+
+    .border-gray-200 { border-color: #262626 !important; }
+    .border-gray-300 { border-color: #333333 !important; }
+
+    .text-gray-900 { color: #e5e5e5 !important; }
+    .text-gray-700 { color: #a3a3a3 !important; }
+    .text-gray-600 { color: #8c8c8c !important; }
+    .text-gray-500 { color: #737373 !important; }
+
+    /* Input fields dark mode */
+    input, textarea, select {
+      background-color: #1a1a1a !important;
+      border-color: #333333 !important;
+      color: #e5e5e5 !important;
+    }
+
+    input::placeholder, textarea::placeholder {
+      color: #737373 !important;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: #3b82f6 !important;
+      background-color: #1f1f1f !important;
+    }
+
+    /* Buttons dark mode */
+    button {
+      border-color: #333333 !important;
+    }
+
+    button:hover {
+      background-color: #1f1f1f !important;
+    }
+
+    /* Model card tooltips - expanded to entire card */
+    .model-card-wrapper {
+      position: relative;
+      display: block;
+    }
+
+    .model-card-wrapper > .tooltiptext {
+      visibility: hidden;
+      width: 320px;
+      background-color: #1a1a1a;
+      border: 1px solid #333333;
+      color: #e5e5e5;
+      text-align: left;
+      border-radius: 8px;
+      padding: 12px 14px;
+      position: fixed;
+      z-index: 9999;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+      font-size: 13px;
+      line-height: 1.5;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 0 1px #333333;
+      pointer-events: none;
+      white-space: normal;
+    }
+
+    .model-card-wrapper > .tooltiptext::before {
+      display: none;
+    }
+
+    /* Arrow border for depth */
+    .model-card-wrapper > .tooltiptext::after {
+      display: none;
+    }
+
+    .model-card-wrapper:hover > .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    /* Scrollbar dark mode */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #1a1a1a;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #333333;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #404040;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-white text-gray-900 antialiased">
+  <!-- Minimal enterprise UI container -->
+  <div class="mx-auto max-w-4xl px-6 py-8">
+
+    <!-- Header: Minimal branding -->
+    <header class="mb-8 border-b border-gray-200 pb-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-semibold tracking-tight text-gray-900">AI Assistant</h1>
+          <p class="mt-1 text-sm text-gray-600">Hardware-aware local LLM chat</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <!-- Provider Toggle -->
+          <div id="providerToggle" class="flex items-center gap-1 rounded-lg border border-gray-300 bg-white p-1">
+            <button id="webllmToggle" class="flex items-center gap-1 rounded px-3 py-1.5 text-xs font-medium bg-blue-600 text-white">
+              <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 5.73 6.974 6 7.5 6A1.5 1.5 0 019 7.5V8a2 2 0 004 0 2 2 0 011.523-1.943A5.977 5.977 0 0116 10c0 .34-.028.675-.083 1H15a2 2 0 00-2 2v2.197A5.973 5.973 0 0110 16v-2a2 2 0 00-2-2 2 2 0 01-2-2 2 2 0 00-1.668-1.973z"/>
+              </svg>
+              WebLLM
+            </button>
+            <button id="ollamaToggle" class="flex items-center gap-1 rounded px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100">
+              <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L7.586 10 5.293 7.707a1 1 0 010-1.414zM11 12a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/>
+              </svg>
+              Ollama
+            </button>
+          </div>
+          <!-- TOON Toggle -->
+          <button id="toonToggle" class="flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100" title="TOON: Token-Optimized Object Notation - Reduces token usage by ~40%">
+            <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
+            </svg>
+            TOON
+          </button>
+          <button id="modelsBtn" class="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+            </svg>
+            Models
+          </button>
+          <div id="currentModelDisplay" class="flex items-center gap-2 rounded-lg border border-gray-200 bg-blue-50 px-4 py-2 text-sm text-blue-700">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span id="currentModelText">No model selected</span>
+          </div>
+          <div id="statusBadge" class="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm">
+            <span id="statusDot" class="h-2 w-2 rounded-full bg-amber-400"></span>
+            <span id="statusText">Connecting…</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hardware Info: Minimal card -->
+    <section class="mb-6">
+      <div class="rounded-lg border border-gray-200 bg-gray-50 p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-xs font-medium uppercase tracking-wide text-gray-500">System Hardware</div>
+            <div id="hardwareSummary" class="mt-1 text-sm text-gray-900">Detecting hardware…</div>
+          </div>
+          <div class="grid grid-cols-3 gap-3 text-sm">
+            <div>
+              <div class="text-xs text-gray-500">RAM</div>
+              <div id="ramVal" class="font-medium">—</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500">Cores</div>
+              <div id="coresVal" class="font-medium">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Chat Container: Minimal design -->
+    <section class="mb-4">
+      <div id="chatContainer" class="h-96 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-4 scroll-smooth"></div>
+    </section>
+
+    <!-- Input: Enterprise minimal -->
+    <section>
+      <div class="rounded-lg border border-gray-200 bg-white p-4">
+        <div class="flex gap-2">
+          <textarea
+            id="messageInput"
+            rows="1"
+            placeholder="Ask anything..."
+            class="flex-1 resize-none rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          ></textarea>
+          <button id="sendBtn" class="rounded bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+            Send
+          </button>
+        </div>
+        <div class="mt-2 flex items-center justify-between text-xs text-gray-500">
+          <span>Press Enter to send</span>
+          <button id="resetBtn" class="hover:text-gray-700">New conversation</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Toast container -->
+  <div id="toastRoot" class="fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-2 px-4 pointer-events-none"></div>
+
+  <!-- Model Selection Modal -->
+  <div id="modelModal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh]">
+      <div class="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-semibold text-gray-900">Model Selection</h2>
+          <p class="mt-1 text-sm text-gray-500">Choose the AI model for your conversation</p>
+        </div>
+        <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <!-- Downloaded Models Section -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-3">
+            <label class="block text-sm font-medium text-gray-700">Downloaded Models</label>
+            <div class="flex items-center gap-2">
+              <span id="lastRefreshed" class="text-xs text-gray-500">Never refreshed</span>
+              <button id="refreshModelsBtn" class="rounded-lg border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                🔄 Refresh
+              </button>
+            </div>
+          </div>
+          <div id="downloadedModelsContainer" class="space-y-2 max-h-64 overflow-y-auto overflow-x-visible border border-gray-200 rounded-lg p-2 bg-green-50">
+            <div class="text-sm text-gray-500 text-center py-4">No downloaded models yet</div>
+          </div>
+        </div>
+
+        <!-- Available Models Section -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-3">Available Models</label>
+          <div id="modelListContainer" class="space-y-2 max-h-96 overflow-y-auto overflow-x-visible border border-gray-200 rounded-lg p-2">
+            <div class="text-sm text-gray-500 text-center py-4">Loading models from HuggingFace...</div>
+          </div>
+        </div>
+
+        <!-- HuggingFace URL Search (Ollama only) -->
+        <div id="urlSearchSection" class="border-t border-gray-200 pt-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Or Search by URL (Ollama or HuggingFace)</label>
+          <div class="flex gap-2">
+            <input
+              id="hfUrlInput"
+              type="text"
+              placeholder="e.g., ollama.com/allenporter/xlam:1b or huggingface.co/meta-llama/..."
+              class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <button id="hfSearchBtn" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+              Search
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Results Section -->
+        <div id="searchResultsSection" class="hidden mt-4">
+          <div class="flex items-center justify-between mb-3">
+            <label class="block text-sm font-medium text-gray-700">Search Results</label>
+            <button id="clearSearchBtn" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
+          </div>
+          <div id="searchResultsContainer" class="space-y-2 max-h-64 overflow-y-auto overflow-x-visible border border-gray-200 rounded-lg p-2 bg-purple-50">
+            <div class="text-sm text-gray-500 text-center py-4">No search results</div>
+          </div>
+        </div>
+
+        <!-- Model Actions (removed - now integrated into cards) -->
+        <div id="modelActions" class="hidden"></div>
+
+        <!-- Download progress -->
+        <div id="downloadProgress" class="hidden mt-4 flex items-center gap-2 text-sm text-gray-600">
+          <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span id="downloadProgressText">Downloading model...</span>
+        </div>
+      </div>
+
+      <div class="border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+        <button id="cancelModalBtn" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+          Cancel
+        </button>
+        <button id="selectModelBtn" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+          Select Model
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:8000';
+    const $ = (id) => document.getElementById(id);
+
+    // State
+    let conversationId = null;
+    let availableModels = [];
+    let downloadedModels = [];
+    let searchResults = []; // Store search results separately
+    let selectedModel = null;
+    let currentActiveModel = null;
+    let hfSearchedModel = null;
+    let lastRefreshedTime = null;
+    let downloadingModels = new Set(); // Track models currently downloading
+
+    // WebLLM State
+    let currentProvider = 'webllm'; // Default to WebLLM
+    let webllmEngine = null;
+    let webllmLoading = false;
+    let webllmReady = false;
+    let toonEnabled = false; // Token-Optimized Object Notation for ~40% token reduction
+
+    // WebLLM Models (browser-based inference)
+    let webllmModelCache = {}; // Track which models are cached in browser
+    const webllmModels = [
+      {
+        name: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',
+        display_name: 'Qwen 2.5 0.5B (WebLLM)',
+        size_gb: 0.4,
+        expected_performance: 'fastest',
+        speed_estimate: '30-50 tokens/sec',
+        quality: 'basic',
+        recommended: true,  // Default - smallest and fastest
+        ram_required_gb: 1,
+        is_compatible: true,
+        source: 'webllm',
+        description: 'Ultra-fast, smallest model - best for quick tasks'
+      },
+      {
+        name: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
+        display_name: 'Llama 3.2 1B (WebLLM)',
+        size_gb: 0.7,
+        expected_performance: 'fastest',
+        speed_estimate: '20-40 tokens/sec',
+        quality: 'medium',
+        recommended: false,
+        ram_required_gb: 2,
+        is_compatible: true,
+        source: 'webllm',
+        description: 'Fast, lightweight model for quick responses'
+      },
+      {
+        name: 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
+        display_name: 'Llama 3.2 3B (WebLLM)',
+        size_gb: 1.6,
+        expected_performance: 'fast',
+        speed_estimate: '10-20 tokens/sec',
+        quality: 'high',
+        recommended: false,
+        ram_required_gb: 4,
+        is_compatible: true,
+        source: 'webllm',
+        description: 'Balanced performance and quality'
+      },
+      {
+        name: 'Phi-3.5-mini-instruct-q4f16_1-MLC',
+        display_name: 'Phi 3.5 Mini (WebLLM)',
+        size_gb: 2.2,
+        expected_performance: 'fast',
+        speed_estimate: '8-15 tokens/sec',
+        quality: 'high',
+        recommended: false,
+        ram_required_gb: 4,
+        is_compatible: true,
+        source: 'webllm',
+        description: 'Microsoft small language model'
+      },
+      {
+        name: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
+        display_name: 'Qwen 2.5 1.5B (WebLLM)',
+        size_gb: 1.0,
+        expected_performance: 'fastest',
+        speed_estimate: '15-30 tokens/sec',
+        quality: 'medium',
+        recommended: false,
+        ram_required_gb: 2,
+        is_compatible: true,
+        source: 'webllm',
+        description: 'Good balance of speed and capability'
+      },
+      {
+        name: 'gemma-2-2b-it-q4f16_1-MLC',
+        display_name: 'Gemma 2 2B (WebLLM)',
+        size_gb: 1.4,
+        expected_performance: 'fast',
+        speed_estimate: '10-20 tokens/sec',
+        quality: 'high',
+        recommended: false,
+        ram_required_gb: 3,
+        is_compatible: true,
+        source: 'webllm',
+        description: 'Google DeepMind model'
+      },
+      {
+        name: 'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC',
+        display_name: 'TinyLlama 1.1B (WebLLM)',
+        size_gb: 0.6,
+        expected_performance: 'fastest',
+        speed_estimate: '25-40 tokens/sec',
+        quality: 'basic',
+        recommended: false,
+        ram_required_gb: 2,
+        is_compatible: true,
+        source: 'webllm',
+        description: 'Compact and efficient'
+      }
+    ];
+
+    // Performance tier colors (proper visual hierarchy - represents speed only)
+    const perfColors = {
+      fastest: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', dot: '#10b981' },
+      fast: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: '#3b82f6' },
+      good: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', dot: '#f59e0b' },
+      slow: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', dot: '#ef4444' }
+    };
+
+    function toast(msg, type='info') {
+      const root = $('toastRoot');
+      const el = document.createElement('div');
+      const colors = {
+        info: 'bg-gray-800 text-white',
+        success: 'bg-green-600 text-white',
+        error: 'bg-red-600 text-white',
+        warn: 'bg-amber-600 text-white'
+      };
+      el.className = `pointer-events-auto rounded-lg px-4 py-3 text-sm shadow-lg ${colors[type]}`;
+      el.textContent = msg;
+      root.appendChild(el);
+      setTimeout(() => el.remove(), 4000);
+    }
+
+    async function fetchJSON(url, opts = {}, timeoutMs = 20000) {
+      const ctrl = new AbortController();
+      const id = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, { ...opts, signal: ctrl.signal });
+        const ct = res.headers.get('content-type') || '';
+        const isJSON = ct.includes('application/json');
+        let payload = null;
+        try { payload = isJSON ? await res.json() : await res.text(); } catch(_) {}
+        if (!res.ok) {
+          const msg = (payload && (payload.detail || payload.error || payload.message)) || res.statusText || 'Request failed';
+          throw new Error(`${res.status} ${msg}`);
+        }
+        return payload ?? {};
+      } finally {
+        clearTimeout(id);
+      }
+    }
+
+    async function updateHealthStatus() {
+      const dot = $('statusDot'); const text = $('statusText');
+      try {
+        const d = await fetchJSON(`${API}/health`, { method:'GET' }, 6000);
+        const status = (d && d.status) || 'healthy';
+        const ok = status === 'healthy';
+        text.textContent = ok ? 'Online' : 'Degraded';
+        dot.className = `h-2 w-2 rounded-full ${ok ? 'bg-green-500' : 'bg-amber-500'}`;
+      } catch (e) {
+        text.textContent = 'Offline';
+        dot.className = 'h-2 w-2 rounded-full bg-red-500';
+      }
+    }
+
+    async function loadHardware() {
+      try {
+        const d = await fetchJSON(`${API}/hardware`, { method:'GET' }, 8000);
+        const chip = d.chip_model || d.chip_type || 'Unknown';
+        const ram = typeof d.ram_gb === 'number' ? `${d.ram_gb}GB` : '—';
+        const cores = d.cpu_cores ?? '—';
+        const compatible = d.compatible_models ? d.compatible_models.length : 0;
+
+        $('ramVal').textContent = ram;
+        $('coresVal').textContent = String(cores);
+        $('hardwareSummary').textContent = `${chip} · ${ram} RAM · ${cores} cores`;
+      } catch (e) {
+        $('hardwareSummary').textContent = 'Unable to detect hardware';
+        toast('Failed to load hardware info', 'warn');
+      }
+    }
+
+    // Helper function to normalize model names for comparison
+    function normalizeModelName(name) {
+      if (!name) return '';
+      // Convert to lowercase and remove version variations
+      name = name.toLowerCase().trim();
+
+      // Remove common HuggingFace prefixes (meta-llama/, mistralai/, etc.)
+      name = name.replace(/^[^/]+\//, '');
+
+      // Handle llama variations: llama-3.2-1b-instruct, llama3.2:1b, llama-3.2:1b should all match
+      name = name.replace(/llama[-_]?3\.2[-:]?/g, 'llama:');
+      name = name.replace(/llama[-_]?3\.1[-:]?/g, 'llama:');
+      name = name.replace(/llama[-_]?3[-:]?/g, 'llama:');
+      name = name.replace(/llama[-_]?2[-:]?/g, 'llama:');
+
+      // Handle qwen variations: Qwen2.5-1.5B-Instruct, qwen2.5:1.5b, qwen:1.5b should match
+      name = name.replace(/qwen2\.5[-:]?/g, 'qwen:');
+      name = name.replace(/qwen2[-:]?/g, 'qwen:');
+
+      // Handle gpt2 variations
+      name = name.replace(/gpt[-_]?2/g, 'gpt2');
+
+      // Normalize size suffixes: -1B → :1b, -1.5B → :1.5b, -7B → :7b
+      name = name.replace(/[-_]?(\d+\.?\d*)b[-_]?/gi, ':$1b');
+
+      // Remove -instruct, -chat, etc. suffixes
+      name = name.replace(/[-_]?(instruct|chat|base|uncensored|v\d+)$/gi, '');
+
+      // Normalize colons and hyphens
+      name = name.replace(/[-_]+/g, ':').replace(/:+/g, ':');
+
+      // Remove trailing colons
+      name = name.replace(/:$/, '');
+
+      return name;
+    }
+
+    // Helper function to check if a model is downloaded (strict matching for Ollama)
+    function isModelDownloaded(modelName) {
+      if (!modelName) return false;
+
+      // Use EXACT matching to prevent false positives
+      // This ensures qwen2:0.5b and qwen2:1.5b are treated as different models
+      const found = downloadedModels.some(dlName => {
+        // Exact case-insensitive match
+        if (dlName.toLowerCase() === modelName.toLowerCase()) {
+          return true;
+        }
+        return false;
+      });
+
+      return found;
+    }
+
+    async function loadModels(forceRefresh = false) {
+      try {
+        // Get available models from Ollama catalog and HuggingFace
+        const availData = await fetchJSON(`${API}/models/available`, { method:'GET' }, 15000);
+        const rawAvailableModels = availData.models || [];
+
+        // Get downloaded models
+        const dlData = await fetchJSON(`${API}/models/downloaded`, { method:'GET' }, 8000);
+        downloadedModels = dlData.models || [];
+
+        console.log('Raw available models:', rawAvailableModels.length);
+        console.log('Downloaded models:', downloadedModels);
+
+        // Create a Set to track unique models and prevent duplicates
+        const uniqueModels = new Map();
+
+        // First, preserve any models from search results that were previously added to availableModels
+        availableModels.forEach(model => {
+          if (model.from_search) {
+            const normalizedName = normalizeModelName(model.name);
+            uniqueModels.set(normalizedName, model);
+          }
+        });
+
+        // Process available models and merge with any new downloaded models
+        rawAvailableModels.forEach(model => {
+          const normalizedName = normalizeModelName(model.name);
+
+          // Only add if not already present (prevent duplicates)
+          if (!uniqueModels.has(normalizedName)) {
+            uniqueModels.set(normalizedName, model);
+          }
+        });
+
+        // Add any downloaded models that aren't in the available list
+        // This ensures downloaded models ALWAYS appear
+        downloadedModels.forEach(dlModelName => {
+          const normalized = normalizeModelName(dlModelName);
+
+          if (!uniqueModels.has(normalized)) {
+            // Create a model entry for downloaded models not in available list
+            uniqueModels.set(normalized, {
+              name: dlModelName,
+              display_name: dlModelName,
+              size_gb: 0, // Unknown size
+              expected_performance: 'good',
+              speed_estimate: 'Unknown',
+              quality: 'medium',
+              recommended: false,
+              ram_required_gb: 0,
+              is_compatible: true,
+              downloaded_only: true // Flag to indicate this was only found in downloads
+            });
+          }
+        });
+
+        // Convert Map back to array
+        availableModels = Array.from(uniqueModels.values());
+
+        console.log('Unique available models after deduplication:', availableModels.length);
+        console.log('Available model names:', availableModels.map(m => m.name));
+
+        // Update last refreshed time
+        lastRefreshedTime = new Date();
+        updateLastRefreshedDisplay();
+
+        // Populate model list as cards
+        const container = $('modelListContainer');
+        container.innerHTML = '';
+
+        if (availableModels.length === 0) {
+          container.innerHTML = '<div class="text-sm text-gray-500 text-center py-4">No models available</div>';
+          return;
+        }
+
+        // Use the loadModelsUI function to render
+        loadModelsUI();
+
+        // Auto-select recommended downloaded model if none selected
+        if (!selectedModel) {
+          const recommendedModel = availableModels.find(m =>
+            m.recommended && isModelDownloaded(m.name)
+          );
+          if (recommendedModel) {
+            selectedModel = recommendedModel;
+            currentActiveModel = recommendedModel.name;
+            updateCurrentModelDisplay(recommendedModel.display_name);
+
+            // Find and select the card
+            const cards = container.querySelectorAll('.model-card-wrapper > div');
+            cards.forEach(card => {
+              if (card.dataset.modelName === recommendedModel.name) {
+                card.classList.add('ring-2', 'ring-blue-500');
+                updateModelActions(recommendedModel, true);
+              }
+            });
+          }
+        }
+
+      } catch (e) {
+        toast('Failed to load models from HuggingFace: ' + e.message, 'error');
+        console.error('Load models error:', e);
+      }
+    }
+
+    function updateCurrentModelDisplay(displayName) {
+      const currentModelText = $('currentModelText');
+      if (displayName) {
+        currentModelText.textContent = displayName;
+      } else {
+        currentModelText.textContent = 'No model selected';
+      }
+    }
+
+    function updateLastRefreshedDisplay() {
+      const lastRefreshedEl = $('lastRefreshed');
+      if (!lastRefreshedTime) {
+        lastRefreshedEl.textContent = 'Never refreshed';
+        return;
+      }
+
+      const now = new Date();
+      const diffMs = now - lastRefreshedTime;
+      const diffMins = Math.floor(diffMs / 60000);
+
+      if (diffMins < 1) {
+        lastRefreshedEl.textContent = 'Just now';
+      } else if (diffMins === 1) {
+        lastRefreshedEl.textContent = '1 min ago';
+      } else if (diffMins < 60) {
+        lastRefreshedEl.textContent = `${diffMins} mins ago`;
+      } else {
+        const hours = Math.floor(diffMins / 60);
+        lastRefreshedEl.textContent = hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+      }
+    }
+
+    function updateModelActions(model, isDownloaded) {
+      // Legacy function - no longer used, buttons are now in cards
+      // Kept for compatibility
+    }
+
+    async function downloadModel(modelName) {
+      if (!modelName) {
+        toast('No model selected to download', 'warn');
+        return;
+      }
+
+      // Prevent duplicate downloads
+      if (downloadingModels.has(modelName)) {
+        toast(`${modelName} is already downloading`, 'warn');
+        return;
+      }
+
+      // Check if already downloaded
+      if (downloadedModels.includes(modelName)) {
+        toast(`${modelName} is already downloaded`, 'info');
+        return;
+      }
+
+      // If model is from search results, add it to availableModels to preserve metadata
+      const searchModel = searchResults.find(m => m.name === modelName);
+      if (searchModel) {
+        const normalizedSearchName = normalizeModelName(searchModel.name);
+        const existsInAvailable = availableModels.some(m =>
+          normalizeModelName(m.name) === normalizedSearchName
+        );
+
+        if (!existsInAvailable) {
+          availableModels.push(searchModel);
+        }
+      }
+
+      // Mark as downloading
+      downloadingModels.add(modelName);
+      loadModelsUI(); // Refresh UI to show downloading state
+      renderSearchResults(); // Also refresh search results UI
+
+      toast(`Starting download of ${modelName}...`, 'info');
+
+      try {
+        // Start download and get actual model name from backend
+        const downloadResponse = await fetchJSON(`${API}/models/download`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model_name: modelName })
+        }, 300000); // 5 minute timeout for large models
+
+        // Use actual_model from backend (the name Ollama actually uses)
+        const actualModelName = downloadResponse.actual_model || modelName;
+
+        toast(`Downloading ${actualModelName}... This may take 10-20 minutes for large models.`, 'info');
+
+        // Poll for download completion with improved name matching and extended timeout
+        let attempts = 0;
+        const maxAttempts = 180; // 15 minutes max (5 seconds × 180 = 15 minutes)
+        const normalizedTarget = normalizeModelName(actualModelName);
+
+        console.log('🔍 Polling for download completion');
+        console.log('   Requested model:', modelName);
+        console.log('   Actual model (from backend):', actualModelName);
+        console.log('   Normalized target:', normalizedTarget);
+
+        while (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+
+          const response = await fetchJSON(`${API}/models/downloaded`);
+          const currentDownloaded = response.models || [];
+
+          // Enhanced logging for debugging
+          console.log(`📊 Attempt ${attempts + 1}/${maxAttempts}`);
+          console.log('   Downloaded models:', currentDownloaded);
+          console.log('   Normalized downloaded:', currentDownloaded.map(m => normalizeModelName(m)));
+
+          // Use the improved isModelDownloaded helper
+          // Update downloadedModels temporarily for checking
+          downloadedModels = currentDownloaded;
+
+          // Check for actual model name (most reliable) or use fuzzy matching as fallback
+          if (currentDownloaded.includes(actualModelName) || isModelDownloaded(actualModelName)) {
+            // Find the exact match to show the correct name
+            const matchedModel = currentDownloaded.find(dlName => {
+              return dlName === actualModelName ||
+                     normalizeModelName(dlName) === normalizedTarget ||
+                     normalizeModelName(dlName).startsWith(normalizedTarget) ||
+                     normalizedTarget.startsWith(normalizeModelName(dlName));
+            });
+
+            downloadingModels.delete(modelName);
+            console.log('✅ Download confirmed!');
+            console.log('   Matched model:', matchedModel);
+            toast(`Successfully downloaded ${matchedModel || actualModelName}!`, 'success');
+
+            // Remove from search results after successful download
+            searchResults = searchResults.filter(model => model.name !== modelName && model.name !== actualModelName);
+
+            await loadModels(); // Reload to show in Downloaded Models section
+            renderSearchResults(); // Refresh search results to reflect removal
+            return;
+          }
+
+          attempts++;
+
+          // Progress updates every minute
+          if (attempts % 12 === 0) {
+            const minutesElapsed = Math.floor(attempts / 12);
+            console.log(`⏳ Still downloading... ${minutesElapsed} minute(s) elapsed`);
+            toast(`Still downloading ${actualModelName}... (${minutesElapsed} min elapsed)`, 'info');
+          }
+        }
+
+        downloadingModels.delete(modelName);
+        console.warn('⚠️ Download polling timed out after', maxAttempts * 5, 'seconds (15 minutes)');
+        toast(`Download of ${actualModelName} is taking longer than expected. Please check "Downloaded Models" section or refresh manually.`, 'warn');
+
+        // Remove from search results even if timeout
+        searchResults = searchResults.filter(model => model.name !== modelName && model.name !== actualModelName);
+
+        await loadModels();
+        renderSearchResults();
+
+      } catch (e) {
+        downloadingModels.delete(modelName);
+
+        // Remove from search results even on error (user can search again if needed)
+        searchResults = searchResults.filter(model => model.name !== modelName);
+
+        loadModelsUI(); // Refresh to remove downloading state
+        renderSearchResults(); // Also refresh search results
+        console.error('❌ Download error:', e);
+        toast('Failed to download model: ' + e.message, 'error');
+      }
+    }
+
+    async function searchHFUrl() {
+      const hfUrlInput = $('hfUrlInput');
+      const url = hfUrlInput.value.trim();
+
+      if (!url) {
+        toast('Please enter a model URL', 'warn');
+        return;
+      }
+
+      // Validate URL format
+      if (!url.includes('huggingface.co') && !url.includes('ollama.com')) {
+        toast('Please enter a valid Ollama or HuggingFace URL', 'warn');
+        return;
+      }
+
+      const isOllama = url.includes('ollama.com');
+      const isHuggingFace = url.includes('huggingface.co');
+
+      toast(`Searching ${isOllama ? 'Ollama' : 'HuggingFace'}...`, 'info');
+
+      try {
+        const result = await fetchJSON(`${API}/models/search-url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: url })
+        }, 30000);
+
+        // Check if model already exists in available models
+        const normalizedResultName = normalizeModelName(result.ollama_name || result.name);
+        const modelExistsInAvailable = availableModels.some(m =>
+          normalizeModelName(m.name) === normalizedResultName
+        );
+
+        // Check if model already exists in search results
+        const modelExistsInSearch = searchResults.some(m =>
+          normalizeModelName(m.name) === normalizedResultName
+        );
+
+        if (modelExistsInAvailable) {
+          toast('Model already in Available Models! Scroll to find it.', 'info');
+          hfUrlInput.value = '';
+          return;
+        }
+
+        if (modelExistsInSearch) {
+          toast('Model already in Search Results!', 'info');
+          hfUrlInput.value = '';
+          return;
+        }
+
+        // Determine if model can be downloaded
+        const canDownload = result.is_compatible !== false &&
+                           (isOllama || result.ollama_compatible !== false);
+
+        // Build compatibility reason
+        let compatibilityReason = result.compatibility_reason || null;
+        if (!canDownload && isHuggingFace && result.ollama_compatible === false) {
+          compatibilityReason = result.warning || result.compatibility_reason ||
+                              "This model is not available in Ollama format";
+        }
+
+        // Create model object with full metadata
+        const newModel = {
+          name: result.ollama_name || result.name || result.model_id,
+          display_name: result.display_name || result.model_id,
+          size_gb: result.size_gb || 0,
+          parameters: result.parameters || 'Unknown',
+          expected_performance: result.expected_performance || 'good',
+          speed_estimate: result.speed_estimate || 'Performance varies by hardware',
+          quality: result.quality || 'medium',
+          recommended: result.recommended || false,
+          ram_required_gb: result.ram_required_gb || 0,
+          hf_url: result.hf_url || null,
+          ollama_url: result.ollama_url || null,
+          description: result.description || `Model from ${url}`,
+          use_cases: result.use_cases || [],
+          is_compatible: canDownload,
+          compatibility_reason: compatibilityReason,
+          from_search: true, // Mark as searched model
+          source: result.source || (isOllama ? 'ollama' : 'huggingface'),
+          family: result.family || null,
+          license: result.license || null,
+          warning: result.warning || null
+        };
+
+        // Add to search results instead of available models
+        searchResults.push(newModel);
+
+        // Show search results section and render the results
+        renderSearchResults();
+
+        // Clear input
+        hfUrlInput.value = '';
+
+        // Show appropriate message
+        if (newModel.is_compatible) {
+          toast(`✓ ${newModel.display_name} added to Search Results!`, 'success');
+        } else {
+          const reason = newModel.compatibility_reason || newModel.warning || 'Cannot be downloaded';
+          toast(`⚠ ${newModel.display_name} found but cannot be downloaded: ${reason}`, 'warn');
+        }
+
+      } catch (e) {
+        const errorMsg = e.message || 'Unknown error';
+
+        // Provide specific error messages
+        if (errorMsg.includes('not found') || errorMsg.includes('404')) {
+          toast('❌ Model not found. Please check the URL.', 'error');
+        } else if (errorMsg.includes('not supported') || errorMsg.includes('not available in Ollama')) {
+          toast('❌ This model format is not supported by Ollama.', 'error');
+        } else if (errorMsg.includes('Invalid URL') || errorMsg.includes('400')) {
+          toast('❌ Invalid URL format. Use Ollama or HuggingFace URLs only.', 'error');
+        } else if (errorMsg.includes('timeout')) {
+          toast('❌ Request timed out. Please try again.', 'error');
+        } else {
+          toast(`❌ Error: ${errorMsg}`, 'error');
+        }
+      }
+    }
+
+    function renderSearchResults() {
+      const searchResultsSection = $('searchResultsSection');
+      const searchResultsContainer = $('searchResultsContainer');
+
+      if (searchResults.length === 0) {
+        searchResultsSection.classList.add('hidden');
+        return;
+      }
+
+      // Show the section
+      searchResultsSection.classList.remove('hidden');
+      searchResultsContainer.innerHTML = '';
+
+      // Render each search result
+      searchResults.forEach(model => {
+        // Search results: use EXACT match only (no fuzzy matching)
+        // This prevents false positives from similar model names
+        const isDownloaded = downloadedModels.includes(model.name);
+        renderModelCard(model, isDownloaded, searchResultsContainer);
+      });
+    }
+
+    function clearSearchResults() {
+      searchResults = [];
+      renderSearchResults();
+      toast('Search results cleared', 'info');
+    }
+
+    function renderModelCard(model, isDownloaded, targetContainer) {
+      const isCompatible = model.is_compatible !== false;
+      const perfStyle = perfColors[model.expected_performance] || perfColors.good;
+      const isCurrentlyLoaded = currentActiveModel === model.name;
+      const isDownloading = downloadingModels.has(model.name);
+
+      // Create wrapper for tooltip
+      const wrapper = document.createElement('div');
+      wrapper.className = 'model-card-wrapper';
+
+      const card = document.createElement('div');
+
+      // Apply styling
+      let cardClasses = `rounded-lg border-2 p-3 transition-all ${perfStyle.border} ${perfStyle.bg}`;
+      if (isCompatible) {
+        cardClasses += ' hover:shadow-md';
+      } else {
+        cardClasses += ' opacity-50 bg-gray-100 border-gray-300 cursor-not-allowed';
+      }
+
+      card.className = cardClasses;
+      card.dataset.model = JSON.stringify(model);
+      card.dataset.downloaded = isDownloaded;
+      card.dataset.modelName = model.name;
+      card.dataset.compatible = isCompatible;
+
+      const star = model.recommended ? '<span class="text-yellow-500">★</span> ' : '';
+      const searchBadge = model.from_search ? '<span class="text-amber-500 text-xs">🔍</span> ' : '';
+      const incompatibleBadge = !isCompatible ? '<span class="text-red-600 text-xs font-medium px-2 py-1 bg-red-100 rounded">⚠ Incompatible</span>' : '';
+      const downloadingBadge = isDownloading ? '<span class="text-blue-600 text-xs font-medium px-2 py-1 bg-blue-100 rounded animate-pulse">⏳ Downloading...</span>' : '';
+
+      // Build buttons based on state
+      let actionButtons = '';
+      if (isDownloading) {
+        actionButtons = `
+          <button disabled class="rounded-lg border border-gray-300 bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-500 cursor-not-allowed">
+            ⏳ Downloading...
+          </button>
+        `;
+      } else if (!isDownloaded) {
+        actionButtons = `
+          <button class="download-model-btn rounded-lg border border-blue-500 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">
+            ↓ Download
+          </button>
+        `;
+      } else if (isCurrentlyLoaded) {
+        actionButtons = `
+          <button class="unload-model-btn rounded-lg border border-orange-500 bg-orange-50 px-3 py-1.5 text-xs font-medium text-orange-700 hover:bg-orange-100">
+            ⏸ Unload
+          </button>
+        `;
+      } else {
+        actionButtons = `
+          <div class="flex gap-2">
+            <button class="load-model-btn rounded-lg border border-green-500 bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-100">
+              ▶ Load
+            </button>
+            <button class="delete-model-btn rounded-lg border border-red-500 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100">
+              🗑 Delete
+            </button>
+          </div>
+        `;
+      }
+
+      // Card content
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
+              ${star}
+              ${searchBadge}
+              <span class="font-semibold ${isCompatible ? perfStyle.text : 'text-gray-500'}">${model.display_name}</span>
+              ${incompatibleBadge}
+              ${downloadingBadge}
+            </div>
+            <div class="text-xs ${isCompatible ? perfStyle.text : 'text-gray-500'} space-y-0.5">
+              <div>Size: ${model.size_gb}GB • ${model.speed_estimate}</div>
+              <div class="flex items-center gap-1">
+                <span class="inline-block w-2 h-2 rounded-full" style="background-color: ${isCompatible ? perfStyle.dot : '#9ca3af'}"></span>
+                <span class="font-medium">${model.expected_performance}</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex-shrink-0">
+            ${actionButtons}
+          </div>
+        </div>
+      `;
+
+      // Build tooltip content
+      const tooltip = document.createElement('span');
+      tooltip.className = 'tooltiptext';
+
+      let tooltipContent = `${model.display_name}\n\n`;
+      if (model.description) {
+        tooltipContent += `${model.description}\n\n`;
+      }
+      if (model.use_cases && model.use_cases.length > 0) {
+        tooltipContent += `Use Cases: ${model.use_cases.join(', ')}\n`;
+      }
+      if (model.ram_required_gb) {
+        tooltipContent += `Hardware: Requires ${model.ram_required_gb}GB RAM\n`;
+      }
+      if (!isCompatible) {
+        tooltipContent += `\n⚠️ Incompatible: ${model.compatibility_reason || 'System requirements not met'}`;
+      }
+
+      tooltip.textContent = tooltipContent;
+
+      wrapper.appendChild(card);
+      wrapper.appendChild(tooltip);
+
+      // Add event listeners for buttons
+      if (isCompatible) {
+        const downloadBtn = card.querySelector('.download-model-btn');
+        const loadBtn = card.querySelector('.load-model-btn');
+        const unloadBtn = card.querySelector('.unload-model-btn');
+        const deleteBtn = card.querySelector('.delete-model-btn');
+
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            downloadModel(model.name);
+          });
+        }
+
+        if (loadBtn) {
+          loadBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            // Auto-unload current model if different
+            if (currentActiveModel && currentActiveModel !== model.name) {
+              unloadModel();
+              await new Promise(r => setTimeout(r, 100)); // Brief delay
+            }
+            loadModel(model.name, model.display_name);
+            loadModelsUI(); // Refresh UI
+          });
+        }
+
+        if (unloadBtn) {
+          unloadBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            unloadModel();
+            loadModelsUI(); // Refresh UI
+          });
+        }
+
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteModel(model.name);
+          });
+        }
+      } else {
+        card.addEventListener('click', () => {
+          toast(model.compatibility_reason || 'This model is not compatible with your system', 'warn');
+        });
+      }
+
+      targetContainer.appendChild(wrapper);
+    }
+
+    function loadModelsUI() {
+      // Reload just the UI without re-fetching from API
+      const downloadedContainer = $('downloadedModelsContainer');
+      const availableContainer = $('modelListContainer');
+
+      downloadedContainer.innerHTML = '';
+      availableContainer.innerHTML = '';
+
+      if (availableModels.length === 0) {
+        availableContainer.innerHTML = '<div class="text-sm text-gray-500 text-center py-4">No models available</div>';
+        downloadedContainer.innerHTML = '<div class="text-sm text-gray-500 text-center py-4">No downloaded models yet</div>';
+        return;
+      }
+
+      // Separate downloaded and available models using improved matching
+      const downloaded = [];
+      const available = [];
+      const seenModels = new Set(); // Track models we've already added to prevent duplicates
+
+      availableModels.forEach(model => {
+        const normalized = normalizeModelName(model.name);
+
+        // Skip if we've already added this model (prevent duplicates)
+        if (seenModels.has(normalized)) {
+          console.log('Skipping duplicate model:', model.name, 'normalized:', normalized);
+          return;
+        }
+
+        seenModels.add(normalized);
+
+        // Use improved isModelDownloaded function
+        if (isModelDownloaded(model.name)) {
+          downloaded.push(model);
+        } else {
+          available.push(model);
+        }
+      });
+
+      console.log('Downloaded models for UI:', downloaded.length, downloaded.map(m => m.name));
+      console.log('Available models for UI:', available.length, available.map(m => m.name));
+
+      // Render downloaded models
+      if (downloaded.length === 0) {
+        downloadedContainer.innerHTML = '<div class="text-sm text-gray-500 text-center py-4">No downloaded models yet</div>';
+      } else {
+        downloaded.forEach(model => {
+          renderModelCard(model, true, downloadedContainer);
+        });
+      }
+
+      // Render available models
+      if (available.length === 0) {
+        availableContainer.innerHTML = '<div class="text-sm text-gray-500 text-center py-4">All compatible models downloaded</div>';
+      } else {
+        available.forEach(model => {
+          renderModelCard(model, false, availableContainer);
+        });
+      }
+    }
+
+    async function downloadFromHFUrl(hfUrl = null) {
+      const url = hfUrl || (hfSearchedModel ? hfSearchedModel.hf_url : null);
+
+      if (!url) {
+        toast('No model selected to download', 'warn');
+        return;
+      }
+
+      const downloadProgress = $('downloadProgress');
+      const downloadProgressText = $('downloadProgressText');
+      downloadProgress.classList.remove('hidden');
+      downloadProgressText.textContent = 'Downloading model from HuggingFace...';
+
+      try {
+        const result = await fetchJSON(`${API}/models/download-from-hf`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hf_url: url })
+        }, 120000);
+
+        toast(`Started downloading ${result.model} from HuggingFace`, 'success');
+        $('hfUrlInput').value = '';
+        $('hfSearchResult').classList.add('hidden');
+        hfSearchedModel = null;
+
+        // Reload models after delay
+        setTimeout(async () => {
+          await loadModels();
+          toast(`Model downloaded successfully!`, 'success');
+        }, 5000);
+
+      } catch (e) {
+        toast('Failed to download from HuggingFace: ' + e.message, 'error');
+      } finally {
+        downloadProgress.classList.add('hidden');
+      }
+    }
+
+    async function deleteModel(modelName) {
+      if (!modelName) {
+        toast('No model selected to delete', 'warn');
+        return;
+      }
+
+      // Check if this is a WebLLM model - use cache clearing instead
+      const isWebLLMModel = webllmModels.some(m => m.name === modelName);
+      if (isWebLLMModel) {
+        await clearWebLLMModelCache(modelName);
+        return;
+      }
+
+      if (!confirm(`Are you sure you want to delete ${modelName}?`)) {
+        return;
+      }
+
+      const downloadProgress = $('downloadProgress');
+      const downloadProgressText = $('downloadProgressText');
+      downloadProgress.classList.remove('hidden');
+      downloadProgressText.textContent = 'Deleting model...';
+
+      try {
+        await fetchJSON(`${API}/models/${encodeURIComponent(modelName)}`, {
+          method: 'DELETE'
+        }, 30000);
+
+        toast(`Successfully deleted ${modelName}`, 'success');
+
+        // Reset current model if it was the deleted one
+        if (currentActiveModel === modelName) {
+          currentActiveModel = null;
+          updateCurrentModelDisplay(null);
+        }
+
+        // Reload models
+        await loadModels();
+
+      } catch (e) {
+        // If model not found (404), remove from downloaded list anyway
+        if (e.message.includes('404') || e.message.includes('not found')) {
+          toast(`Model ${modelName} not found. Removing from downloaded list.`, 'warn');
+          // Remove from downloaded models list - use exact matching
+          downloadedModels = downloadedModels.filter(m => m.toLowerCase() !== modelName.toLowerCase());
+          // Reset current model if it was the deleted one
+          if (currentActiveModel === modelName) {
+            currentActiveModel = null;
+            updateCurrentModelDisplay(null);
+          }
+          // Refresh UI
+          loadModelsUI();
+        } else {
+          toast('Failed to delete model: ' + e.message, 'error');
+        }
+      } finally {
+        downloadProgress.classList.add('hidden');
+      }
+    }
+
+    async function loadModel(modelName, displayName) {
+      if (!modelName) {
+        toast('No model selected', 'warn');
+        return;
+      }
+
+      // Check if this is a WebLLM model
+      const isWebLLMModel = webllmModels.some(m => m.name === modelName);
+
+      if (isWebLLMModel && currentProvider === 'webllm') {
+        // IMPORTANT: Properly unload current WebLLM engine before loading new model
+        if (webllmEngine || webllmReady || webllmLoading) {
+          console.log('Unloading previous WebLLM model before loading new one');
+          webllmReady = false;
+          webllmLoading = false;
+          webllmEngine = null;
+          // Update status to show switching
+          $('statusText').textContent = 'Switching models...';
+          $('statusDot').className = 'h-2 w-2 rounded-full bg-amber-400';
+          // Small delay to ensure cleanup
+          await new Promise(r => setTimeout(r, 200));
+        }
+
+        // Load WebLLM model
+        currentActiveModel = modelName;
+        updateCurrentModelDisplay(displayName);
+
+        // Initialize WebLLM with the selected model
+        const success = await initWebLLM(modelName);
+        if (!success) {
+          currentActiveModel = null;
+          updateCurrentModelDisplay(null);
+          return;
+        }
+      } else {
+        // Ollama model - verify it's downloaded before setting as active
+        if (!isModelDownloaded(modelName)) {
+          toast(`Model ${displayName} not found. Removing from downloaded list.`, 'warn');
+          // Remove from downloaded models list - use exact matching
+          downloadedModels = downloadedModels.filter(m => m.toLowerCase() !== modelName.toLowerCase());
+          // Refresh UI to move model back to available section
+          loadModelsUI();
+          return;
+        }
+        currentActiveModel = modelName;
+        updateCurrentModelDisplay(displayName);
+        toast(`Loaded ${displayName}`, 'success');
+      }
+
+      // Refresh the action buttons to show unload
+      if (selectedModel) {
+        updateModelActions(selectedModel, true);
+      }
+
+      // Refresh model list UI
+      if (currentProvider === 'webllm') {
+        await loadModelsForProvider('webllm');
+      } else {
+        loadModelsUI();
+      }
+    }
+
+    function unloadModel() {
+      if (!currentActiveModel) {
+        toast('No model is currently loaded', 'warn');
+        return;
+      }
+
+      const previousModel = currentActiveModel;
+      currentActiveModel = null;
+      updateCurrentModelDisplay(null);
+
+      // Clean up WebLLM if it was loaded
+      if (webllmReady || webllmEngine || webllmLoading) {
+        webllmReady = false;
+        webllmLoading = false;
+        webllmEngine = null;
+        $('statusText').textContent = 'Model Unloaded';
+        $('statusDot').className = 'h-2 w-2 rounded-full bg-amber-400';
+      }
+
+      toast(`Unloaded model`, 'success');
+
+      // Refresh the action buttons to show load/delete
+      if (selectedModel) {
+        const isDownloaded = downloadedModels.includes(selectedModel.name);
+        updateModelActions(selectedModel, isDownloaded);
+      }
+
+      // Refresh model list UI
+      if (currentProvider === 'webllm') {
+        loadModelsForProvider('webllm');
+      } else {
+        loadModelsUI();
+      }
+    }
+
+    // Chat UI
+    const chatEl = $('chatContainer');
+
+    function messageBubble({ role, text, model }) {
+      const isUser = role === 'user';
+      const wrap = document.createElement('div');
+      wrap.className = `mb-3 flex ${isUser ? 'justify-end' : 'justify-start'}`;
+      const bubble = document.createElement('div');
+      bubble.className = `max-w-[80%] rounded-lg px-4 py-3 text-sm ${isUser ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-900'}`;
+      const header = document.createElement('div');
+      header.className = `mb-1 text-xs ${isUser ? 'text-blue-100' : 'text-gray-500'} font-medium`;
+      header.textContent = isUser ? 'You' : 'Assistant';
+      if (!isUser && model) {
+        header.textContent += ` · ${model}`;
+      }
+      const body = document.createElement('div');
+      body.className = 'whitespace-pre-wrap leading-relaxed';
+      body.textContent = text;
+      bubble.appendChild(header);
+      bubble.appendChild(body);
+      wrap.appendChild(bubble);
+      return wrap;
+    }
+
+    function typingBubble() {
+      const wrap = document.createElement('div');
+      wrap.className = 'mb-3 flex justify-start';
+      const bubble = document.createElement('div');
+      bubble.className = 'max-w-[75%] rounded-lg border border-gray-200 bg-white px-4 py-3';
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-1.5';
+      for (let i = 0; i < 3; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'h-2 w-2 rounded-full bg-gray-400 animate-pulse';
+        dot.style.animationDelay = `${i * 0.15}s`;
+        row.appendChild(dot);
+      }
+      bubble.appendChild(row);
+      wrap.appendChild(bubble);
+      return wrap;
+    }
+
+    function scrollToBottom(force = false) {
+      const threshold = 80;
+      const nearBottom = chatEl.scrollTop + chatEl.clientHeight >= chatEl.scrollHeight - threshold;
+      if (force || nearBottom) chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    async function sendMessage(text) {
+      const input = $('messageInput');
+      const btn = $('sendBtn');
+      if (!text || !text.trim()) return;
+
+      const modelToUse = currentActiveModel || null;
+
+      chatEl.appendChild(messageBubble({ role: 'user', text }));
+      scrollToBottom(true);
+
+      const typingEl = typingBubble();
+      const shownAt = Date.now();
+      chatEl.appendChild(typingEl);
+      scrollToBottom();
+
+      input.value = '';
+      input.style.height = 'auto';
+      btn.disabled = true;
+
+      try {
+        let reply = '';
+        let model = '';
+
+        if (currentProvider === 'webllm') {
+          // Use WebLLM (browser-based inference)
+          if (!webllmReady) {
+            if (webllmLoading) {
+              throw new Error('WebLLM is still loading. Please wait...');
+            } else {
+              throw new Error('WebLLM not initialized. Please select a model.');
+            }
+          }
+
+          reply = await webllmChat(text);
+          model = currentActiveModel || 'WebLLM';
+
+        } else {
+          // Use Ollama (local server)
+          const body = { message: text };
+          if (conversationId) body.conversation_id = conversationId;
+          if (modelToUse) body.model = modelToUse;
+
+          const data = await fetchJSON(`${API}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          }, 120000);
+
+          if (data && data.conversation_id) {
+            conversationId = data.conversation_id;
+          }
+
+          reply = (data.response || '').toString();
+          model = data.model_used || '';
+        }
+
+        const delay = Math.max(0, 250 - (Date.now() - shownAt));
+        await new Promise(r => setTimeout(r, delay));
+        typingEl.remove();
+
+        if (reply && reply.trim()) {
+          chatEl.appendChild(messageBubble({ role: 'assistant', text: reply, model }));
+        } else {
+          chatEl.appendChild(messageBubble({ role: 'assistant', text: 'Error: Empty response', model }));
+        }
+        scrollToBottom(true);
+      } catch (e) {
+        typingEl.remove();
+
+        // Handle Ollama model not found error
+        if (currentProvider === 'ollama' && (e.message.includes('404') || e.message.includes('not found'))) {
+          const failedModel = currentActiveModel;
+          toast(`Model ${failedModel} not found. Removing and switching to available model.`, 'warn');
+
+          // Try to delete the corrupt model from Ollama
+          try {
+            await fetchJSON(`${API}/models/${encodeURIComponent(failedModel)}`, {
+              method: 'DELETE'
+            }, 10000);
+          } catch (deleteError) {
+            // Ignore delete errors - model may already be gone
+            console.log('Could not delete model from Ollama:', deleteError.message);
+          }
+
+          // Unload current model
+          currentActiveModel = null;
+          updateCurrentModelDisplay(null);
+
+          // Refresh UI - reload from server to get fresh list
+          await loadModels();
+
+          // Find another downloaded model to use
+          if (downloadedModels.length > 0) {
+            // Default to llama3.2:1b if available, otherwise first downloaded model
+            const defaultModel = downloadedModels.find(m => m.includes('llama3.2:1b')) || downloadedModels[0];
+            currentActiveModel = defaultModel;
+            updateCurrentModelDisplay(defaultModel);
+            toast(`Switched to ${defaultModel}`, 'info');
+          } else {
+            // No downloaded models left, switch to WebLLM
+            toast('No Ollama models available. Switching to WebLLM.', 'info');
+            switchProvider('webllm');
+          }
+
+          chatEl.appendChild(messageBubble({ role: 'assistant', text: `Model "${failedModel}" was not found and has been removed. Please try your message again.`, model: 'System' }));
+        } else {
+          toast('Failed to send message: ' + e.message, 'error');
+          chatEl.appendChild(messageBubble({ role: 'assistant', text: 'Sorry — ' + e.message, model: currentProvider }));
+        }
+        scrollToBottom(true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Modal controls
+    async function openModelModal() {
+      $('modelModal').classList.remove('hidden');
+      // Refresh model list when modal is opened
+      if (currentProvider === 'webllm') {
+        await loadModelsForProvider('webllm');
+      } else {
+        await loadModelsForProvider('ollama');
+      }
+    }
+
+    function closeModelModal() {
+      $('modelModal').classList.add('hidden');
+    }
+
+    // Bindings
+    (function bind() {
+      const input = $('messageInput');
+      const btn = $('sendBtn');
+      const hfSearchBtn = $('hfSearchBtn');
+      const hfUrlInput = $('hfUrlInput');
+      const refreshModelsBtn = $('refreshModelsBtn');
+      const clearSearchBtn = $('clearSearchBtn');
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage(input.value);
+        }
+      });
+
+      input.addEventListener('input', () => {
+        input.style.height = 'auto';
+        input.style.height = (input.scrollHeight) + 'px';
+      });
+
+      btn.addEventListener('click', () => sendMessage(input.value));
+
+      refreshModelsBtn.addEventListener('click', async () => {
+        if (currentProvider === 'webllm') {
+          toast('Refreshing WebLLM models and checking for updates...', 'info');
+          // Check for new WebLLM models by fetching the latest model list
+          await checkForNewWebLLMModels();
+          await loadModelsForProvider('webllm');
+          toast('WebLLM models refreshed!', 'success');
+        } else {
+          toast('Refreshing models from HuggingFace...', 'info');
+          await loadModels(true);
+          toast('Models refreshed!', 'success');
+        }
+      });
+
+      hfSearchBtn.addEventListener('click', searchHFUrl);
+
+      hfUrlInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          searchHFUrl();
+        }
+      });
+
+      clearSearchBtn.addEventListener('click', clearSearchResults);
+
+      $('resetBtn').addEventListener('click', () => {
+        conversationId = null;
+        chatEl.innerHTML = '';
+        chatEl.appendChild(messageBubble({
+          role: 'assistant',
+          text: 'New conversation started. Ask anything to begin.'
+        }));
+        scrollToBottom(true);
+      });
+
+      // Modal bindings
+      $('modelsBtn').addEventListener('click', openModelModal);
+      $('closeModalBtn').addEventListener('click', closeModelModal);
+      $('cancelModalBtn').addEventListener('click', closeModelModal);
+      $('selectModelBtn').addEventListener('click', closeModelModal);
+    })();
+
+    // ============================================
+    // WebLLM Functions
+    // ============================================
+
+    async function initWebLLM(modelName) {
+      // Wait for WebLLM module to load if not ready
+      if (!window.webllm) {
+        toast('Waiting for WebLLM to load...', 'info');
+        $('statusText').textContent = 'Loading WebLLM...';
+
+        // Wait up to 10 seconds for module to load
+        for (let i = 0; i < 100; i++) {
+          await new Promise(r => setTimeout(r, 100));
+          if (window.webllm) break;
+        }
+
+        if (!window.webllm) {
+          toast('WebLLM failed to load. Please refresh the page.', 'error');
+          return false;
+        }
+      }
+
+      // Debug: Check secure context
+      console.log('Secure context:', window.isSecureContext);
+      console.log('Location:', window.location.href);
+      console.log('navigator.gpu:', navigator.gpu);
+
+      // Check WebGPU support with better detection
+      let gpuAvailable = false;
+      let gpuError = null;
+      try {
+        if (navigator.gpu) {
+          const adapter = await navigator.gpu.requestAdapter();
+          gpuAvailable = !!adapter;
+          if (adapter) {
+            const info = await adapter.requestAdapterInfo();
+            console.log('GPU Adapter:', info);
+          }
+        } else {
+          gpuError = 'navigator.gpu is undefined';
+        }
+      } catch (e) {
+        gpuError = e.message;
+        console.warn('WebGPU check failed:', e);
+      }
+
+      if (!gpuAvailable) {
+        console.error('WebGPU not available:', gpuError);
+
+        // Check common issues
+        if (!window.isSecureContext) {
+          toast('WebGPU requires HTTPS or localhost. Current page is not secure.', 'error');
+        } else if (!navigator.gpu) {
+          toast('WebGPU not supported. Enable Hardware Acceleration in Chrome Settings → System', 'error');
+        } else {
+          toast('WebGPU adapter not found. Check chrome://gpu for details.', 'error');
+        }
+
+        // Auto-switch to Ollama
+        toast('Switching to Ollama (local server) instead...', 'info');
+        setTimeout(() => switchProvider('ollama'), 1500);
+        return false;
+      }
+
+      webllmLoading = true;
+      $('statusText').textContent = 'Initializing...';
+      toast(`Loading ${modelName} in browser...`, 'info');
+
+      try {
+        const initProgressCallback = (report) => {
+          const progress = Math.round(report.progress * 100);
+          const text = report.text || 'Loading...';
+          $('statusText').textContent = `Loading: ${progress}%`;
+          console.log(`WebLLM: ${text} (${progress}%)`);
+        };
+
+        webllmEngine = await window.webllm.CreateMLCEngine(modelName, {
+          initProgressCallback,
+        });
+
+        webllmReady = true;
+        webllmLoading = false;
+        $('statusText').textContent = 'WebLLM Ready';
+        $('statusDot').className = 'h-2 w-2 rounded-full bg-green-500';
+
+        // Mark model as cached in localStorage for future detection
+        localStorage.setItem(`webllm-cached-${modelName}`, 'true');
+        webllmModelCache[modelName] = true;
+
+        toast(`${modelName} loaded successfully!`, 'success');
+        return true;
+
+      } catch (error) {
+        webllmLoading = false;
+        webllmReady = false;
+        console.error('WebLLM init error:', error);
+        $('statusText').textContent = 'Load Failed';
+        $('statusDot').className = 'h-2 w-2 rounded-full bg-red-500';
+
+        // Auto-switch to Ollama on failure
+        toast(`WebLLM failed: ${error.message}. Switching to Ollama...`, 'warn');
+        setTimeout(() => switchProvider('ollama'), 1500);
+        return false;
+      }
+    }
+
+    // TOON (Token-Optimized Object Notation) encoder for ~40% token reduction
+    // Based on https://github.com/toon-format/toon
+    function toTOON(messages) {
+      if (!messages || messages.length === 0) return '';
+
+      // TOON tabular format: field names in header, data in rows
+      // This reduces repetition of field names across objects
+      let toon = `msgs[${messages.length}]{r,c}:\n`;
+
+      messages.forEach(m => {
+        // Escape special characters: commas become \, and newlines become \n
+        const role = m.role === 'user' ? 'u' : (m.role === 'assistant' ? 'a' : 's');
+        const content = m.content
+          .replace(/\\/g, '\\\\')
+          .replace(/,/g, '\\,')
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '');
+        toon += `${role},${content}\n`;
+      });
+
+      return toon;
+    }
+
+    // Decode TOON format back to messages array
+    function fromTOON(toonString) {
+      if (!toonString || !toonString.startsWith('msgs[')) return [];
+
+      const lines = toonString.split('\n').filter(l => l.trim());
+      const messages = [];
+
+      // Skip header line
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        const commaIndex = line.indexOf(',');
+        if (commaIndex === -1) continue;
+
+        const roleChar = line.substring(0, commaIndex);
+        let content = line.substring(commaIndex + 1);
+
+        // Unescape
+        content = content
+          .replace(/\\n/g, '\n')
+          .replace(/\\,/g, ',')
+          .replace(/\\\\/g, '\\');
+
+        const role = roleChar === 'u' ? 'user' : (roleChar === 'a' ? 'assistant' : 'system');
+        messages.push({ role, content });
+      }
+
+      return messages;
+    }
+
+    async function webllmChat(message, history = []) {
+      if (!webllmEngine || !webllmReady) {
+        throw new Error('WebLLM not initialized');
+      }
+
+      let messages;
+
+      if (toonEnabled && history.length > 0) {
+        // Use TOON format for history to reduce tokens
+        const toonHistory = toTOON(history);
+        const systemPrompt = `Previous conversation in TOON format (Token-Optimized Object Notation):\n${toonHistory}\n\nRespond naturally to the user's message.`;
+
+        messages = [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: message }
+        ];
+
+        console.log('TOON enabled - compressed history:', toonHistory.length, 'chars vs', JSON.stringify(history).length, 'chars');
+      } else {
+        messages = [
+          ...history.map(h => ({ role: h.role, content: h.content })),
+          { role: 'user', content: message }
+        ];
+      }
+
+      const response = await webllmEngine.chat.completions.create({
+        messages,
+        temperature: 0.7,
+        max_tokens: 1024,
+      });
+
+      return response.choices[0].message.content;
+    }
+
+    function switchProvider(provider) {
+      currentProvider = provider;
+      localStorage.setItem('ai-assistant-provider', provider);
+
+      // Update UI
+      const webllmBtn = $('webllmToggle');
+      const ollamaBtn = $('ollamaToggle');
+
+      if (provider === 'webllm') {
+        webllmBtn.className = 'flex items-center gap-1 rounded px-3 py-1.5 text-xs font-medium bg-blue-600 text-white';
+        ollamaBtn.className = 'flex items-center gap-1 rounded px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100';
+
+        // Show WebLLM models
+        loadModelsForProvider('webllm');
+
+        // Check if WebLLM is ready
+        if (!webllmReady && !webllmLoading) {
+          // Auto-load default WebLLM model with slight delay to ensure module is ready
+          const defaultModel = webllmModels.find(m => m.recommended) || webllmModels[0];
+          currentActiveModel = defaultModel.name;
+          updateCurrentModelDisplay(defaultModel.display_name);
+
+          // Small delay to allow module to fully initialize
+          setTimeout(async () => {
+            const success = await initWebLLM(defaultModel.name);
+            if (success) {
+              // Refresh UI to show model as cached
+              await loadModelsForProvider('webllm');
+            }
+          }, 500);
+        }
+      } else {
+        ollamaBtn.className = 'flex items-center gap-1 rounded px-3 py-1.5 text-xs font-medium bg-blue-600 text-white';
+        webllmBtn.className = 'flex items-center gap-1 rounded px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100';
+
+        // Update status indicator for Ollama
+        $('statusText').textContent = 'Connecting...';
+        $('statusDot').className = 'h-2 w-2 rounded-full bg-amber-400';
+
+        // Clear WebLLM state
+        webllmReady = false;
+        webllmLoading = false;
+        webllmEngine = null;
+
+        // Show Ollama models
+        loadModelsForProvider('ollama');
+        updateHealthStatus();
+
+        // Auto-load default Ollama model (llama3.2:1b)
+        currentActiveModel = 'llama3.2:1b';
+        updateCurrentModelDisplay('Llama 3.2 1B');
+      }
+
+      toast(`Switched to ${provider === 'webllm' ? 'WebLLM (Browser)' : 'Ollama (Local Server)'}`, 'info');
+    }
+
+    async function loadModelsForProvider(provider) {
+      const downloadedContainer = $('downloadedModelsContainer');
+      const availableContainer = $('modelListContainer');
+      const urlSearchSection = $('urlSearchSection');
+      const searchResultsSection = $('searchResultsSection');
+
+      if (provider === 'webllm') {
+        // Hide URL search for WebLLM
+        if (urlSearchSection) urlSearchSection.classList.add('hidden');
+        if (searchResultsSection) searchResultsSection.classList.add('hidden');
+
+        // Show WebLLM models with proper status
+        downloadedContainer.innerHTML = '';
+        availableContainer.innerHTML = '';
+
+        // Check which models are cached in browser
+        await checkWebLLMModelCache();
+
+        // Separate cached and uncached models
+        const cachedModels = [];
+        const uncachedModels = [];
+
+        webllmModels.forEach(model => {
+          if (webllmModelCache[model.name]) {
+            cachedModels.push(model);
+          } else {
+            uncachedModels.push(model);
+          }
+        });
+
+        // Render cached models in "Downloaded" section
+        if (cachedModels.length === 0) {
+          downloadedContainer.innerHTML = '<div class="text-sm text-gray-500 text-center py-4">No WebLLM models cached yet. Load a model to cache it.</div>';
+        } else {
+          cachedModels.forEach(model => {
+            const isLoaded = currentActiveModel === model.name && webllmReady;
+            renderWebLLMModelCard(model, true, isLoaded, downloadedContainer);
+          });
+        }
+
+        // Render uncached models in "Available" section
+        if (uncachedModels.length === 0) {
+          availableContainer.innerHTML = '<div class="text-sm text-gray-500 text-center py-4">All WebLLM models are cached!</div>';
+        } else {
+          uncachedModels.forEach(model => {
+            renderWebLLMModelCard(model, false, false, availableContainer);
+          });
+        }
+      } else {
+        // Show URL search for Ollama
+        if (urlSearchSection) urlSearchSection.classList.remove('hidden');
+
+        // Show loading state for Ollama models
+        downloadedContainer.innerHTML = '<div class="text-sm text-gray-500 text-center py-4">Loading models...</div>';
+        availableContainer.innerHTML = '<div class="text-sm text-gray-500 text-center py-4">Loading models...</div>';
+
+        // Load Ollama models
+        await loadModels();
+      }
+    }
+
+    // Check which WebLLM models are cached in browser
+    async function checkWebLLMModelCache() {
+      // Reset cache tracking
+      webllmModelCache = {};
+
+      // Primary method: Check localStorage for cached model flags
+      // This is set when a model is successfully loaded
+      for (const model of webllmModels) {
+        const isCached = localStorage.getItem(`webllm-cached-${model.name}`) === 'true';
+        webllmModelCache[model.name] = isCached;
+      }
+
+      console.log('WebLLM model cache status:', webllmModelCache);
+    }
+
+    // Render a WebLLM model card with appropriate buttons
+    function renderWebLLMModelCard(model, isCached, isLoaded, targetContainer) {
+      const perfStyle = perfColors[model.expected_performance] || perfColors.good;
+      const isCurrentlyLoading = webllmLoading && currentActiveModel === model.name;
+
+      // Create wrapper for tooltip
+      const wrapper = document.createElement('div');
+      wrapper.className = 'model-card-wrapper';
+
+      const card = document.createElement('div');
+      let cardClasses = `rounded-lg border-2 p-3 transition-all hover:shadow-md ${perfStyle.border} ${perfStyle.bg}`;
+      card.className = cardClasses;
+      card.dataset.modelName = model.name;
+
+      const star = model.recommended ? '<span class="text-yellow-500">★</span> ' : '';
+      const loadingBadge = isCurrentlyLoading ? '<span class="text-blue-600 text-xs font-medium px-2 py-1 bg-blue-100 rounded animate-pulse">⏳ Loading...</span>' : '';
+      const loadedBadge = isLoaded ? '<span class="text-green-600 text-xs font-medium px-2 py-1 bg-green-100 rounded">✓ Active</span>' : '';
+
+      // Build action buttons based on state
+      let actionButtons = '';
+      if (isCurrentlyLoading) {
+        actionButtons = `
+          <button disabled class="rounded-lg border border-gray-300 bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-500 cursor-not-allowed">
+            ⏳ Loading...
+          </button>
+        `;
+      } else if (isLoaded) {
+        actionButtons = `
+          <button class="unload-webllm-btn rounded-lg border border-orange-500 bg-orange-50 px-3 py-1.5 text-xs font-medium text-orange-700 hover:bg-orange-100">
+            ⏸ Unload
+          </button>
+        `;
+      } else if (isCached) {
+        actionButtons = `
+          <div class="flex gap-2">
+            <button class="load-webllm-btn rounded-lg border border-green-500 bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-100">
+              ▶ Load
+            </button>
+            <button class="delete-webllm-btn rounded-lg border border-red-500 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100">
+              🗑 Clear
+            </button>
+          </div>
+        `;
+      } else {
+        actionButtons = `
+          <button class="load-webllm-btn rounded-lg border border-blue-500 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">
+            ↓ Download & Load
+          </button>
+        `;
+      }
+
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
+              ${star}
+              <span class="font-semibold ${perfStyle.text}">${model.display_name}</span>
+              ${loadingBadge}
+              ${loadedBadge}
+            </div>
+            <div class="text-xs ${perfStyle.text} space-y-0.5">
+              <div>Size: ${model.size_gb}GB • ${model.speed_estimate}</div>
+              <div class="flex items-center gap-1">
+                <span class="inline-block w-2 h-2 rounded-full" style="background-color: ${perfStyle.dot}"></span>
+                <span class="font-medium">${model.expected_performance}</span>
+                ${isCached ? '<span class="ml-2 text-green-600">• Cached</span>' : ''}
+              </div>
+            </div>
+          </div>
+          <div class="flex-shrink-0">
+            ${actionButtons}
+          </div>
+        </div>
+      `;
+
+      // Build tooltip
+      const tooltip = document.createElement('span');
+      tooltip.className = 'tooltiptext';
+      tooltip.textContent = `${model.display_name}\n\n${model.description}\n\nRAM Required: ${model.ram_required_gb}GB`;
+
+      wrapper.appendChild(card);
+      wrapper.appendChild(tooltip);
+
+      // Add event listeners
+      const loadBtn = card.querySelector('.load-webllm-btn');
+      const unloadBtn = card.querySelector('.unload-webllm-btn');
+      const deleteBtn = card.querySelector('.delete-webllm-btn');
+
+      if (loadBtn) {
+        loadBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await loadModel(model.name, model.display_name);
+          // UI refresh is handled inside loadModel
+        });
+      }
+
+      if (unloadBtn) {
+        unloadBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          unloadModel();
+          await loadModelsForProvider('webllm');
+        });
+      }
+
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await clearWebLLMModelCache(model.name);
+        });
+      }
+
+      targetContainer.appendChild(wrapper);
+    }
+
+    // Clear a specific WebLLM model from browser cache
+    async function clearWebLLMModelCache(modelName) {
+      try {
+        toast(`Clearing ${modelName} from cache...`, 'info');
+
+        // Remove from localStorage tracking
+        localStorage.removeItem(`webllm-cached-${modelName}`);
+
+        // Update cache tracking
+        webllmModelCache[modelName] = false;
+
+        // If this was the active model, unload it
+        if (currentActiveModel === modelName) {
+          currentActiveModel = null;
+          updateCurrentModelDisplay(null);
+          webllmReady = false;
+          webllmLoading = false;
+          webllmEngine = null;
+          $('statusText').textContent = 'Model Cleared';
+          $('statusDot').className = 'h-2 w-2 rounded-full bg-amber-400';
+        }
+
+        // Refresh UI to show model as uncached
+        await loadModelsForProvider('webllm');
+
+        toast(`Cleared ${modelName} from cache`, 'success');
+      } catch (e) {
+        console.error('Failed to clear model cache:', e);
+        toast(`Failed to clear cache: ${e.message}`, 'error');
+      }
+    }
+
+    // Check for new WebLLM models from the registry
+    async function checkForNewWebLLMModels() {
+      // Re-check cache status for all models
+      await checkWebLLMModelCache();
+      console.log('Refreshed WebLLM model cache status');
+    }
+
+    // ============================================
+    // End WebLLM Functions
+    // ============================================
+
+    // Init
+    (async function init() {
+      await Promise.all([loadHardware(), updateHealthStatus()]);
+
+      // Restore provider preference (default to WebLLM)
+      const savedProvider = localStorage.getItem('ai-assistant-provider') || 'webllm';
+      currentProvider = savedProvider;
+
+      // Setup provider toggle listeners
+      $('webllmToggle').addEventListener('click', () => switchProvider('webllm'));
+      $('ollamaToggle').addEventListener('click', () => switchProvider('ollama'));
+
+      // Setup TOON toggle listener
+      const savedToon = localStorage.getItem('ai-assistant-toon') === 'true';
+      toonEnabled = savedToon;
+      updateToonButton();
+
+      $('toonToggle').addEventListener('click', () => {
+        toonEnabled = !toonEnabled;
+        localStorage.setItem('ai-assistant-toon', toonEnabled);
+        updateToonButton();
+        toast(`TOON ${toonEnabled ? 'enabled' : 'disabled'} - ${toonEnabled ? '~40% fewer tokens' : 'standard format'}`, 'info');
+      });
+
+      function updateToonButton() {
+        const btn = $('toonToggle');
+        if (toonEnabled) {
+          btn.className = 'flex items-center gap-1 rounded-lg border border-green-500 bg-green-900 px-3 py-1.5 text-xs font-medium text-green-400';
+          btn.title = 'TOON enabled - Token usage reduced by ~40%';
+        } else {
+          btn.className = 'flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100';
+          btn.title = 'TOON: Token-Optimized Object Notation - Reduces token usage by ~40%';
+        }
+      }
+
+      // Initialize based on provider
+      if (savedProvider === 'webllm') {
+        switchProvider('webllm');
+      } else {
+        switchProvider('ollama');
+        await loadModels();
+      }
+
+      setInterval(updateHealthStatus, 30000);
+      setInterval(updateLastRefreshedDisplay, 60000);
+
+      const welcomeText = savedProvider === 'webllm'
+        ? 'Welcome! WebLLM is loading in your browser. Once ready, you can start chatting!'
+        : 'Welcome! Click "Models" above to select an AI model and start chatting.';
+
+      chatEl.appendChild(messageBubble({
+        role: 'assistant',
+        text: welcomeText
+      }));
+      scrollToBottom(true);
+    })();
+  </script>
+</body>
+</html>

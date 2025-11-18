@@ -1,0 +1,37 @@
+⏺ How to Run the System
+
+  Quick Start (Recommended)
+
+  cd ~/Desktop/ai-assistant
+  ./setup-and-run.sh
+
+  This will automatically:
+  - Start Ollama (port 11434)
+  - Start Backend (port 8000)
+  - Start Frontend (port 5173)
+  - Open 3 tabs in Terminal
+
+  Then open your browser to: http://localhost:5173/index.html
+
+  ---
+  Alternative: Simple Server Start
+
+  cd ~/Desktop/ai-assistant
+  ./start-server.sh
+
+  Then open: http://localhost:8000
+
+  ---
+  Prerequisites
+
+  Make sure Ollama is installed:
+  brew install ollama
+
+  ---
+  Troubleshooting
+
+  If you get errors:
+  cd ~/Desktop/ai-assistant
+  ./cleanup.sh        # Stop everything
+  ./fix-venv.sh       # Fix Python environment
+  ./setup-and-run.sh  # Start again

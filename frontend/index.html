@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Assistant - Local LLM Chat</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ["Inter","ui-sans-serif","system-ui","-apple-system","Segoe UI","Roboto","Helvetica Neue","Arial"]
+          },
+          boxShadow: { soft: "0 10px 25px -10px rgba(0,0,0,0.25)" },
+          keyframes: {
+            typing: { "0%":{opacity:.2}, "20%":{opacity:1}, "100%":{opacity:.2} },
+            pingSoft: {
+              "0%": { boxShadow: "0 0 0 0 rgba(99,102,241,0.5)" },
+              "70%": { boxShadow: "0 0 0 12px rgba(99,102,241,0)" },
+              "100%": { boxShadow: "0 0 0 0 rgba(99,102,241,0)" }
+            },
+            spin: { "0%": { transform: "rotate(0deg)" }, "100%": { transform: "rotate(360deg)" } }
+          },
+          animation: {
+            typing: "typing 1.4s infinite",
+            pingSoft: "pingSoft 1.8s ease-out infinite",
+            spin: "spin 1s linear infinite"
+          }
+        }
+      }
+    }
+  </script>
+  <style>.scroll-smooth { scroll-behavior: smooth; }</style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-slate-100">
+  <div class="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+    <!-- Header -->
+    <header class="mb-4">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center shadow-soft animate-pingSoft">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="h-6 w-6">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.5v15m7.5-7.5h-15"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-xl sm:text-2xl font-semibold tracking-tight">AI Assistant</h1>
+            <p class="text-xs sm:text-sm text-slate-400">Local-first chat with model selection</p>
+          </div>
+        </div>
+        <div id="statusBadge" class="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-sm">
+          <span id="statusDot" class="h-2.5 w-2.5 rounded-full bg-amber-400"></span>
+          <span id="statusText" class="text-slate-200">Connecting…</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hardware banner -->
+    <section class="mb-4">
+      <div class="rounded-2xl border border-slate-700/60 bg-gradient-to-br from-slate-800/70 to-slate-800/30 p-4 sm:p-5 shadow-soft">
+        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div class="flex items-start gap-3">
+            <div class="mt-0.5 h-8 w-8 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="h-5 w-5 text-indigo-300">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3.75H6.912a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H15M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859M12 3v8.25m0 0-3-3m3 3 3-3"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-base sm:text-lg font-medium">Your Hardware</h2>
+              <p id="hardwareSummary" class="mt-1 text-sm text-slate-400">Detecting your system…</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+            <div class="rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2">
+              <div class="text-slate-400 text-xs">Chip</div>
+              <div id="chipVal" class="font-medium">—</div>
+            </div>
+            <div class="rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2">
+              <div class="text-slate-400 text-xs">RAM</div>
+              <div id="ramVal" class="font-medium">—</div>
+            </div>
+            <div class="rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2">
+              <div class="text-slate-400 text-xs">Cores</div>
+              <div id="coresVal" class="font-medium">—</div>
+            </div>
+            <div class="rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2">
+              <div class="text-slate-400 text-xs">Compatible</div>
+              <div id="compatibleVal" class="font-medium">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
+      <!-- Chat area (3 columns) -->
+      <section class="lg:col-span-3">
+        <!-- Model selector -->
+        <div class="mb-3 rounded-2xl border border-slate-700/60 bg-slate-900/50 p-3 sm:p-4">
+          <div class="flex items-center gap-3 flex-wrap">
+            <label class="text-sm font-medium text-slate-300">Model:</label>
+            <select id="modelSelector" class="flex-1 min-w-[200px] rounded-xl border border-slate-700/60 bg-slate-900/80 px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+              <option value="">Loading models...</option>
+            </select>
+            <button id="downloadBtn" class="hidden inline-flex items-center gap-2 rounded-xl border border-indigo-500/60 bg-indigo-500/20 px-3 py-2 text-sm font-medium text-indigo-200 hover:bg-indigo-500/30 transition">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="h-4 w-4">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              Download
+            </button>
+            <div id="downloadProgress" class="hidden flex items-center gap-2 text-sm text-slate-400">
+              <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Downloading...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat container -->
+        <div id="chatContainer" class="h-[50vh] sm:h-[55vh] rounded-2xl border border-slate-700/60 bg-slate-900/30 p-3 sm:p-4 overflow-y-auto scroll-smooth"></div>
+
+        <!-- Input area -->
+        <div class="mt-3 rounded-2xl border border-slate-700/60 bg-slate-900/50 p-3 sm:p-4">
+          <div class="flex items-end gap-2">
+            <textarea id="messageInput" rows="1" placeholder="Ask anything… (Press Enter to send)" class="flex-1 resize-none rounded-xl border border-slate-700/60 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"></textarea>
+            <button id="sendBtn" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 px-4 py-2 font-medium text-white shadow-soft transition hover:opacity-95 active:scale-[0.98] disabled:opacity-60">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="h-5 w-5">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 19V5m0 0-7 7m7-7 7 7"/>
+              </svg>
+              Send
+            </button>
+          </div>
+          <div class="mt-2 flex items-center justify-between">
+            <p class="text-xs text-slate-500">Shift + Enter for new line</p>
+            <button id="resetBtn" class="text-xs rounded-md border border-slate-700/60 px-2 py-1 text-slate-300 hover:bg-slate-800/60">New conversation</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sidebar (1 column) -->
+      <aside class="space-y-4">
+        <!-- Model info -->
+        <div class="rounded-2xl border border-slate-700/60 bg-slate-900/40 p-4">
+          <h3 class="text-sm font-semibold text-slate-200 mb-3">Current Model</h3>
+          <div id="currentModelInfo" class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-slate-400">Name:</span>
+              <span id="modelName" class="text-slate-200 font-medium">—</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Size:</span>
+              <span id="modelSize" class="text-slate-200">—</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Performance:</span>
+              <span id="modelPerf" class="text-slate-200">—</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Speed:</span>
+              <span id="modelSpeed" class="text-slate-200">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Example prompts -->
+        <div class="rounded-2xl border border-slate-700/60 bg-slate-900/40 p-4">
+          <div class="mb-3 flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-slate-200">Try these</h3>
+          </div>
+          <div id="examples" class="flex flex-col gap-2"></div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Toasts -->
+    <div id="toastRoot" class="fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-2 px-4 pointer-events-none"></div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:8000';
+    const $ = (id) => document.getElementById(id);
+
+    // State
+    let conversationId = null;
+    let availableModels = [];
+    let downloadedModels = [];
+    let selectedModel = null;
+
+    // Performance badge colors
+    const perfBadges = {
+      excellent: '🟢',
+      good: '🟡',
+      acceptable: '🟠',
+      slow: '🔴'
+    };
+
+    function toast(msg, type='info') {
+      const root = $('toastRoot');
+      const el = document.createElement('div');
+      const colors = {
+        info: 'border-slate-600/70 bg-slate-800/90',
+        success: 'border-emerald-600/40 bg-emerald-950/70',
+        error: 'border-rose-600/40 bg-rose-950/70',
+        warn: 'border-amber-600/40 bg-amber-950/70'
+      };
+      el.className = `pointer-events-auto w-full max-w-md rounded-xl border ${colors[type]} px-4 py-3 text-sm shadow-soft backdrop-blur`;
+      el.textContent = msg;
+      root.appendChild(el);
+      setTimeout(() => el.remove(), 3800);
+    }
+
+    async function fetchJSON(url, opts = {}, timeoutMs = 20000) {
+      const ctrl = new AbortController();
+      const id = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, { ...opts, signal: ctrl.signal });
+        const ct = res.headers.get('content-type') || '';
+        const isJSON = ct.includes('application/json');
+        let payload = null;
+        try { payload = isJSON ? await res.json() : await res.text(); } catch(_) {}
+        if (!res.ok) {
+          const msg = (payload && (payload.detail || payload.error || payload.message)) || res.statusText || 'Request failed';
+          throw new Error(`${res.status} ${msg}`);
+        }
+        return payload ?? {};
+      } finally {
+        clearTimeout(id);
+      }
+    }
+
+    async function updateHealthStatus() {
+      const dot = $('statusDot'); const text = $('statusText');
+      try {
+        const d = await fetchJSON(`${API}/health`, { method:'GET' }, 6000);
+        const status = (d && d.status) || 'healthy';
+        const norm = status === 'healthy' ? 'ok' : (status === 'degraded' ? 'degraded' : 'down');
+        const label = norm === 'ok' ? 'Online' : (norm === 'degraded' ? 'Degraded' : 'Offline');
+        text.textContent = label;
+        dot.className = 'h-2.5 w-2.5 rounded-full ' + (norm === 'ok' ? 'bg-emerald-400' : norm === 'degraded' ? 'bg-amber-400' : 'bg-rose-500');
+      } catch (e) {
+        text.textContent = 'Offline';
+        dot.className = 'h-2.5 w-2.5 rounded-full bg-rose-500';
+        toast('Health check failed: ' + e.message, 'warn');
+      }
+    }
+
+    async function loadHardware() {
+      try {
+        const d = await fetchJSON(`${API}/hardware`, { method:'GET' }, 8000);
+        const chip = d.chip_model || d.chip_type || 'Unknown';
+        const ram = typeof d.ram_gb === 'number' ? `${d.ram_gb} GB` : '—';
+        const cores = d.cpu_cores ?? '—';
+        const compatible = d.compatible_models ? d.compatible_models.length : 0;
+
+        $('chipVal').textContent = chip;
+        $('ramVal').textContent = ram;
+        $('coresVal').textContent = String(cores);
+        $('compatibleVal').textContent = `${compatible} models`;
+        $('hardwareSummary').textContent = `${chip} with ${ram} RAM • ${compatible} compatible models available`;
+
+        // Store available models
+        availableModels = d.compatible_models || [];
+      } catch (e) {
+        $('hardwareSummary').textContent = 'Unable to detect hardware.';
+        toast('Failed to load hardware info: ' + e.message, 'warn');
+      }
+    }
+
+    async function loadModels() {
+      try {
+        // Get available models (from hardware detection)
+        const availData = await fetchJSON(`${API}/models/available`, { method:'GET' }, 8000);
+        availableModels = availData.models || [];
+
+        // Get downloaded models
+        const dlData = await fetchJSON(`${API}/models/downloaded`, { method:'GET' }, 8000);
+        downloadedModels = dlData.models || [];
+
+        // Populate selector
+        const selector = $('modelSelector');
+        selector.innerHTML = '';
+
+        availableModels.forEach(model => {
+          const isDownloaded = downloadedModels.includes(model.name);
+          const option = document.createElement('option');
+          option.value = model.name;
+
+          const badge = perfBadges[model.expected_performance] || '⚪';
+          const star = model.recommended ? '⭐ ' : '';
+          const downloaded = isDownloaded ? '' : ' (Not downloaded)';
+
+          option.textContent = `${star}${model.display_name} ${badge} - ${model.size_gb}GB${downloaded}`;
+          option.dataset.model = JSON.stringify(model);
+          option.dataset.downloaded = isDownloaded;
+
+          if (model.recommended && isDownloaded) {
+            option.selected = true;
+          }
+
+          selector.appendChild(option);
+        });
+
+        // Trigger change to update UI
+        selector.dispatchEvent(new Event('change'));
+      } catch (e) {
+        toast('Failed to load models: ' + e.message, 'error');
+      }
+    }
+
+    function updateModelInfo(model) {
+      if (!model) return;
+
+      selectedModel = model;
+
+      $('modelName').textContent = model.display_name;
+      $('modelSize').textContent = `${model.size_gb} GB`;
+
+      const perfBadge = perfBadges[model.expected_performance] || '';
+      $('modelPerf').textContent = `${perfBadge} ${model.expected_performance}`;
+      $('modelSpeed').textContent = model.speed_estimate;
+    }
+
+    async function downloadModel(modelName) {
+      const downloadBtn = $('downloadBtn');
+      const downloadProgress = $('downloadProgress');
+
+      downloadBtn.classList.add('hidden');
+      downloadProgress.classList.remove('hidden');
+
+      try {
+        await fetchJSON(`${API}/models/download`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model_name: modelName })
+        }, 120000);
+
+        toast(`Started downloading ${modelName}. This may take a few minutes.`, 'success');
+
+        // Poll for completion (simplified - in production would use WebSocket)
+        setTimeout(async () => {
+          await loadModels();
+          toast(`${modelName} downloaded successfully!`, 'success');
+        }, 5000);
+
+      } catch (e) {
+        toast('Failed to start download: ' + e.message, 'error');
+      } finally {
+        downloadProgress.classList.add('hidden');
+      }
+    }
+
+    // Chat UI
+    const chatEl = $('chatContainer');
+
+    function messageBubble({ role, text, model }) {
+      const isUser = role === 'user';
+      const wrap = document.createElement('div');
+      wrap.className = `mb-3 flex ${isUser ? 'justify-end' : 'justify-start'}`;
+      const bubble = document.createElement('div');
+      bubble.className = `max-w-[85%] sm:max-w-[80%] rounded-2xl px-4 py-3 shadow-soft border ${isUser ? 'bg-indigo-600/90 border-indigo-400/30' : 'bg-slate-800/70 border-slate-700/60'}`;
+      const header = document.createElement('div');
+      header.className = 'mb-1 text-xs text-slate-300/80 flex items-center gap-2';
+      header.textContent = isUser ? 'You' : 'Assistant';
+      if (!isUser && model) {
+        const tag = document.createElement('span');
+        tag.className = 'rounded-md border border-slate-600/60 bg-slate-900/40 px-2 py-0.5 text-[11px] text-slate-300';
+        tag.textContent = model;
+        header.appendChild(tag);
+      }
+      const body = document.createElement('div');
+      body.className = 'whitespace-pre-wrap text-sm leading-relaxed';
+      body.textContent = text;
+      bubble.appendChild(header); bubble.appendChild(body); wrap.appendChild(bubble); return wrap;
+    }
+
+    function typingBubble() {
+      const wrap = document.createElement('div'); wrap.className = 'mb-3 flex justify-start';
+      const bubble = document.createElement('div'); bubble.className = 'max-w-[75%] rounded-2xl px-4 py-3 shadow-soft border bg-slate-800/70 border-slate-700/60';
+      const row = document.createElement('div'); row.className = 'flex items-center gap-1.5';
+      for (let i = 0; i < 3; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'h-2 w-2 rounded-full bg-slate-300/80 animate-typing';
+        dot.style.animationDelay = `${i * 0.15}s`;
+        row.appendChild(dot);
+      }
+      bubble.appendChild(row); wrap.appendChild(bubble); return wrap;
+    }
+
+    function scrollToBottom(force = false) {
+      const threshold = 80;
+      const nearBottom = chatEl.scrollTop + chatEl.clientHeight >= chatEl.scrollHeight - threshold;
+      if (force || nearBottom) chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    async function sendMessage(text) {
+      const input = $('messageInput'); const btn = $('sendBtn');
+      if (!text || !text.trim()) return;
+
+      const selector = $('modelSelector');
+      const modelToUse = selector.value || null;
+
+      chatEl.appendChild(messageBubble({ role: 'user', text }));
+      scrollToBottom(true);
+
+      const typingEl = typingBubble();
+      const shownAt = Date.now();
+      chatEl.appendChild(typingEl);
+      scrollToBottom();
+
+      input.value = ''; input.style.height = 'auto'; btn.disabled = true;
+
+      const body = { message: text };
+      if (conversationId) body.conversation_id = conversationId;
+      if (modelToUse) body.model = modelToUse;
+
+      try {
+        const data = await fetchJSON(`${API}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        }, 120000);
+
+        if (data && data.conversation_id) {
+          conversationId = data.conversation_id;
+        }
+
+        const reply = (data.response || '').toString();
+        const model = data.model_used || '';
+
+        const delay = Math.max(0, 250 - (Date.now() - shownAt));
+        await new Promise(r => setTimeout(r, delay));
+        typingEl.remove();
+
+        if (reply && reply.trim()) {
+          chatEl.appendChild(messageBubble({ role: 'assistant', text: reply, model }));
+        } else {
+          const detail = data.detail || data.error || data.message || 'Empty response';
+          chatEl.appendChild(messageBubble({ role: 'assistant', text: `Error: ${detail}`, model: model || 'unknown' }));
+        }
+        scrollToBottom(true);
+      } catch (e) {
+        typingEl.remove();
+        toast('Failed to send message: ' + e.message, 'error');
+        chatEl.appendChild(messageBubble({ role: 'assistant', text: 'Sorry — I had trouble reaching the backend.', model: 'offline' }));
+        scrollToBottom(true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Examples
+    (function renderExamples() {
+      const root = $('examples');
+      const samples = [
+        'What can you help me with?',
+        'Explain quantum computing simply',
+        'Write a Python hello world',
+        'Compare these models'
+      ];
+      samples.forEach(t => {
+        const b = document.createElement('button');
+        b.className = 'rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2 text-left text-sm text-slate-200 hover:border-indigo-500/60 hover:bg-slate-800/60 transition';
+        b.textContent = t;
+        b.addEventListener('click', () => {
+          const input = $('messageInput'); input.value = t; input.focus();
+        });
+        root.appendChild(b);
+      });
+    })();
+
+    // Bindings
+    (function bind() {
+      const input = $('messageInput'); const btn = $('sendBtn');
+      const selector = $('modelSelector');
+      const downloadBtn = $('downloadBtn');
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault(); sendMessage(input.value);
+        }
+      });
+
+      input.addEventListener('input', () => {
+        input.style.height = 'auto';
+        input.style.height = (input.scrollHeight) + 'px';
+      });
+
+      btn.addEventListener('click', () => sendMessage(input.value));
+
+      selector.addEventListener('change', (e) => {
+        const option = e.target.selectedOptions[0];
+        if (!option) return;
+
+        const modelData = JSON.parse(option.dataset.model || '{}');
+        const isDownloaded = option.dataset.downloaded === 'true';
+
+        updateModelInfo(modelData);
+
+        if (isDownloaded) {
+          downloadBtn.classList.add('hidden');
+        } else {
+          downloadBtn.classList.remove('hidden');
+        }
+      });
+
+      downloadBtn.addEventListener('click', () => {
+        const modelName = selector.value;
+        if (modelName) {
+          downloadModel(modelName);
+        }
+      });
+
+      $('resetBtn').addEventListener('click', () => {
+        conversationId = null;
+        chatEl.innerHTML = '';
+        chatEl.appendChild(messageBubble({
+          role: 'assistant',
+          text: 'Started a new conversation. Ask anything to begin.'
+        }));
+        scrollToBottom(true);
+      });
+    })();
+
+    // Init
+    (async function init() {
+      await Promise.all([loadHardware(), updateHealthStatus()]);
+      await loadModels();
+      setInterval(updateHealthStatus, 30000);
+      chatEl.appendChild(messageBubble({
+        role: 'assistant',
+        text: 'Welcome! I\'m your local AI Assistant. Choose a model above and start chatting.'
+      }));
+      scrollToBottom(true);
+    })();
+  </script>
+</body>
+</html>

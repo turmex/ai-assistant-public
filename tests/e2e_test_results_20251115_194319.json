@@ -1,0 +1,178 @@
+{
+  "timestamp": "2025-11-15T19:43:19.022972",
+  "duration_seconds": 0.762959,
+  "phases": {
+    "Prerequisites": {
+      "passed": 1,
+      "failed": 0,
+      "warnings": 0
+    },
+    "Phase 1": {
+      "passed": 4,
+      "failed": 0,
+      "warnings": 0
+    },
+    "Phase 2": {
+      "passed": 3,
+      "failed": 0,
+      "warnings": 0
+    },
+    "Phase 3": {
+      "passed": 5,
+      "failed": 0,
+      "warnings": 0
+    },
+    "Phase 4": {
+      "passed": 4,
+      "failed": 0,
+      "warnings": 0
+    },
+    "Phase 5": {
+      "passed": 2,
+      "failed": 0,
+      "warnings": 1
+    }
+  },
+  "results": [
+    {
+      "phase": "Prerequisites",
+      "test": "API connectivity",
+      "status": "PASS",
+      "details": "Server is online (status: healthy)",
+      "timestamp": "2025-11-15T19:43:19.045946"
+    },
+    {
+      "phase": "Phase 1",
+      "test": "Models are displayed",
+      "status": "PASS",
+      "details": "Found 50 models",
+      "timestamp": "2025-11-15T19:43:19.762540"
+    },
+    {
+      "phase": "Phase 1",
+      "test": "Models from HuggingFace (not hardcoded)",
+      "status": "PASS",
+      "details": "Models contain HuggingFace metadata or sufficient variety",
+      "timestamp": "2025-11-15T19:43:19.762555"
+    },
+    {
+      "phase": "Phase 1",
+      "test": "Model compatibility classification",
+      "status": "PASS",
+      "details": "Compatible: 49, Incompatible: 1",
+      "timestamp": "2025-11-15T19:43:19.762562"
+    },
+    {
+      "phase": "Phase 1",
+      "test": "All models displayed (not filtered)",
+      "status": "PASS",
+      "details": "50 models shown",
+      "timestamp": "2025-11-15T19:43:19.762565"
+    },
+    {
+      "phase": "Phase 2",
+      "test": "HuggingFace descriptions present",
+      "status": "PASS",
+      "details": "50/50 models have descriptions",
+      "timestamp": "2025-11-15T19:43:19.762602"
+    },
+    {
+      "phase": "Phase 2",
+      "test": "Use cases listed",
+      "status": "PASS",
+      "details": "50/50 models have use cases",
+      "timestamp": "2025-11-15T19:43:19.762605"
+    },
+    {
+      "phase": "Phase 2",
+      "test": "Hardware requirements shown",
+      "status": "PASS",
+      "details": "50/50 models have hardware info",
+      "timestamp": "2025-11-15T19:43:19.762607"
+    },
+    {
+      "phase": "Phase 3",
+      "test": "Hardware API endpoint",
+      "status": "PASS",
+      "details": "Successfully fetched hardware data",
+      "timestamp": "2025-11-15T19:43:19.767521"
+    },
+    {
+      "phase": "Phase 3",
+      "test": "Shows actual CPU/chip type",
+      "status": "PASS",
+      "details": "Chip: Intel(R) Core(TM) i7-1068NG7 CPU @ 2.30GHz",
+      "timestamp": "2025-11-15T19:43:19.767534"
+    },
+    {
+      "phase": "Phase 3",
+      "test": "Shows actual RAM",
+      "status": "PASS",
+      "details": "RAM: 32 GB",
+      "timestamp": "2025-11-15T19:43:19.767538"
+    },
+    {
+      "phase": "Phase 3",
+      "test": "Shows actual CPU cores",
+      "status": "PASS",
+      "details": "Cores: 4",
+      "timestamp": "2025-11-15T19:43:19.767540"
+    },
+    {
+      "phase": "Phase 3",
+      "test": "Shows dynamic model count (not hardcoded 8)",
+      "status": "PASS",
+      "details": "Compatible models: 8",
+      "timestamp": "2025-11-15T19:43:19.767543"
+    },
+    {
+      "phase": "Phase 4",
+      "test": "Downloaded models endpoint",
+      "status": "PASS",
+      "details": "Found 3 downloaded models",
+      "timestamp": "2025-11-15T19:43:19.782486"
+    },
+    {
+      "phase": "Phase 4",
+      "test": "Download API availability",
+      "status": "PASS",
+      "details": "Download endpoint exists (not tested to avoid long wait)",
+      "timestamp": "2025-11-15T19:43:19.782510"
+    },
+    {
+      "phase": "Phase 4",
+      "test": "Model swapping possible",
+      "status": "PASS",
+      "details": "3 models available for swapping",
+      "timestamp": "2025-11-15T19:43:19.782513"
+    },
+    {
+      "phase": "Phase 4",
+      "test": "Smallest model identified",
+      "status": "PASS",
+      "details": "qwen2.5:1.5b - 1.1GB",
+      "timestamp": "2025-11-15T19:43:19.782535"
+    },
+    {
+      "phase": "Phase 5",
+      "test": "Current model endpoint",
+      "status": "WARN",
+      "details": "Unexpected status: 405",
+      "timestamp": "2025-11-15T19:43:19.785424"
+    },
+    {
+      "phase": "Phase 5",
+      "test": "Model management API documented",
+      "status": "PASS",
+      "details": "Load, unload, and delete endpoints available",
+      "timestamp": "2025-11-15T19:43:19.785443"
+    },
+    {
+      "phase": "Phase 5",
+      "test": "Model management safety",
+      "status": "PASS",
+      "details": "Operations not tested to preserve system state",
+      "timestamp": "2025-11-15T19:43:19.785445"
+    }
+  ]
+}

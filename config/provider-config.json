@@ -1,0 +1,41 @@
+{
+  "default_provider": "webllm",
+  "providers": {
+    "webllm": {
+      "enabled": true,
+      "name": "WebLLM",
+      "description": "Browser-based LLM using WebGPU",
+      "type": "client",
+      "default_model": "Llama-3.2-1B-Instruct-q4f16_1-MLC",
+      "requires_server": false,
+      "features": {
+        "streaming": true,
+        "offline_support": true,
+        "privacy_focused": true
+      }
+    },
+    "ollama": {
+      "enabled": true,
+      "name": "Ollama",
+      "description": "Local Ollama server",
+      "type": "server",
+      "base_url": "http://localhost:11434",
+      "default_model": "llama3.2:1b",
+      "requires_server": true,
+      "features": {
+        "streaming": true,
+        "large_models": true,
+        "higher_quality": true
+      }
+    }
+  },
+  "fallback_strategy": {
+    "enabled": true,
+    "order": ["webllm", "ollama"]
+  },
+  "toon_optimization": {
+    "enabled": false,
+    "auto_enable_threshold": 500,
+    "aggressive_mode": false
+  }
+}
