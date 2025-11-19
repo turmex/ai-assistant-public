@@ -14,6 +14,11 @@
     // Dispatch event when loaded
     window.dispatchEvent(new Event('webllm-loaded'));
   </script>
+  <!-- Markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Code syntax highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -136,11 +141,346 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #404040;
     }
+
+    /* Sidebar styles */
+    .sidebar {
+      width: 280px;
+      background-color: #0f0f0f;
+      border-right: 1px solid #262626;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar.collapsed {
+      transform: translateX(-280px);
+      width: 0;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid #262626;
+    }
+
+    .conversation-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .conversation-item {
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 4px;
+      font-size: 13px;
+      color: #a3a3a3;
+      transition: background-color 0.15s;
+    }
+
+    .conversation-item:hover {
+      background-color: #1a1a1a;
+    }
+
+    .conversation-item.active {
+      background-color: #1f1f1f;
+      color: #e5e5e5;
+    }
+
+    .conversation-item-title {
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .conversation-item-date {
+      font-size: 11px;
+      color: #737373;
+      margin-top: 4px;
+    }
+
+    /* Markdown content styles */
+    .markdown-content {
+      line-height: 1.6;
+    }
+
+    .markdown-content p {
+      margin-bottom: 0.75rem;
+    }
+
+    .markdown-content p:last-child {
+      margin-bottom: 0;
+    }
+
+    .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+      font-weight: 600;
+      margin: 1rem 0 0.5rem 0;
+    }
+
+    .markdown-content h1 { font-size: 1.5em; }
+    .markdown-content h2 { font-size: 1.25em; }
+    .markdown-content h3 { font-size: 1.1em; }
+
+    .markdown-content ul, .markdown-content ol {
+      margin: 0.5rem 0;
+      padding-left: 1.5rem;
+    }
+
+    .markdown-content li {
+      margin-bottom: 0.25rem;
+    }
+
+    .markdown-content blockquote {
+      border-left: 3px solid #3b82f6;
+      padding-left: 1rem;
+      margin: 0.75rem 0;
+      color: #a3a3a3;
+    }
+
+    .markdown-content a {
+      color: #3b82f6;
+      text-decoration: underline;
+    }
+
+    .markdown-content strong {
+      font-weight: 600;
+    }
+
+    .markdown-content em {
+      font-style: italic;
+    }
+
+    /* Code block styles */
+    .code-block-wrapper {
+      position: relative;
+      margin: 0.75rem 0;
+      border-radius: 8px;
+      overflow: hidden;
+      background-color: #0d1117;
+    }
+
+    .code-block-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background-color: #161b22;
+      border-bottom: 1px solid #30363d;
+      font-size: 12px;
+      color: #8b949e;
+    }
+
+    .code-block-language {
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+
+    .copy-code-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background-color: transparent;
+      border: 1px solid #30363d !important;
+      color: #8b949e;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .copy-code-btn:hover {
+      background-color: #21262d !important;
+      color: #f0f6fc;
+    }
+
+    .copy-code-btn.copied {
+      color: #3fb950;
+      border-color: #238636 !important;
+    }
+
+    .markdown-content pre {
+      margin: 0;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .markdown-content code {
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+
+    .markdown-content :not(pre) > code {
+      background-color: #21262d;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #f0883e;
+    }
+
+    /* Token counter */
+    .token-counter {
+      font-size: 11px;
+      color: #737373;
+      padding: 4px 8px;
+      background-color: #1a1a1a;
+      border-radius: 4px;
+      border: 1px solid #333333;
+    }
+
+    /* System prompt indicator */
+    .system-prompt-indicator {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background-color: #7c3aed20;
+      color: #a78bfa;
+      border: 1px solid #7c3aed40;
+    }
+
+    /* Keyboard shortcut hints */
+    .kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      font-size: 10px;
+      font-family: 'SF Mono', Monaco, monospace;
+      background-color: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 3px;
+      color: #8b949e;
+    }
+
+    /* Main layout with sidebar */
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    /* Streaming indicator */
+    .streaming-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 16px;
+      background-color: #3b82f6;
+      margin-left: 2px;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+
+    /* Export dropdown */
+    .export-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 4px;
+      background-color: #1a1a1a;
+      border: 1px solid #333333;
+      border-radius: 8px;
+      padding: 4px;
+      min-width: 140px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      z-index: 100;
+    }
+
+    .export-dropdown button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: #e5e5e5;
+      border: none !important;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .export-dropdown button:hover {
+      background-color: #262626 !important;
+    }
+
+    /* Toggle sidebar button */
+    .toggle-sidebar-btn {
+      position: fixed;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 50;
+      padding: 8px 4px;
+      background-color: #1a1a1a;
+      border: 1px solid #333333;
+      border-radius: 0 4px 4px 0;
+      cursor: pointer;
+      color: #737373;
+      transition: all 0.15s;
+    }
+
+    .toggle-sidebar-btn:hover {
+      background-color: #262626 !important;
+      color: #e5e5e5;
+    }
+
+    .sidebar-visible .toggle-sidebar-btn {
+      left: 288px;
+    }
   </style>
 </head>
-<body class="min-h-screen bg-white text-gray-900 antialiased">
-  <!-- Minimal enterprise UI container -->
-  <div class="mx-auto max-w-4xl px-6 py-8">
+<body class="min-h-screen bg-white text-gray-900 antialiased sidebar-visible">
+  <!-- App Layout with Sidebar -->
+  <div class="app-layout">
+    <!-- Left Sidebar - Conversation History -->
+    <aside id="conversationSidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold text-gray-200">Conversations</h2>
+          <button id="newChatBtn" class="p-1.5 rounded hover:bg-gray-800 text-gray-400 hover:text-white" title="New Chat (Ctrl+N)">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="relative flex-1">
+            <button id="exportBtn" class="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white bg-gray-800 rounded hover:bg-gray-700">
+              <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+              </svg>
+              Export
+            </button>
+            <div id="exportDropdown" class="export-dropdown hidden">
+              <button data-format="json">Export as JSON</button>
+              <button data-format="markdown">Export as Markdown</button>
+              <button data-format="txt">Export as Text</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="conversationList" class="conversation-list">
+        <div class="text-xs text-gray-500 text-center py-4">No conversations yet</div>
+      </div>
+    </aside>
+
+    <!-- Toggle Sidebar Button -->
+    <button id="toggleSidebarBtn" class="toggle-sidebar-btn" title="Toggle Sidebar (Ctrl+B)">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="mx-auto max-w-4xl px-6 py-8">
 
     <!-- Header: Minimal branding -->
     <header class="mb-8 border-b border-gray-200 pb-6">
@@ -201,6 +541,17 @@
             <span id="statusDot" class="h-2 w-2 rounded-full bg-amber-400"></span>
             <span id="statusText">Connecting…</span>
           </div>
+          <!-- Token Counter -->
+          <div id="tokenCounter" class="token-counter" title="Estimated tokens used in conversation">
+            Tokens: <span id="tokenCount">0</span>
+          </div>
+          <!-- System Prompt Button -->
+          <button id="systemPromptBtn" class="flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100" title="Configure System Prompt (Ctrl+P)">
+            <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            System
+          </button>
         </div>
       </div>
     </header>
@@ -247,12 +598,19 @@
           </button>
         </div>
         <div class="mt-2 flex items-center justify-between text-xs text-gray-500">
-          <span>Press Enter to send</span>
-          <button id="resetBtn" class="hover:text-gray-700">New conversation</button>
+          <span>Press <kbd class="kbd">Enter</kbd> to send, <kbd class="kbd">Shift+Enter</kbd> for newline</span>
+          <div class="flex items-center gap-3">
+            <span class="text-gray-600" title="Keyboard Shortcuts: Ctrl+N (New), Ctrl+M (Models), Ctrl+B (Sidebar)">
+              <kbd class="kbd">?</kbd> Shortcuts
+            </span>
+            <button id="resetBtn" class="hover:text-gray-700">New conversation</button>
+          </div>
         </div>
       </div>
     </section>
 
+      </div>
+    </div>
   </div>
 
   <!-- Toast container -->
@@ -352,6 +710,84 @@
     </div>
   </div>
 
+  <!-- System Prompt Modal -->
+  <div id="systemPromptModal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+      <div class="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-semibold text-gray-900">System Prompt</h2>
+          <p class="mt-1 text-sm text-gray-500">Configure the AI's behavior and persona</p>
+        </div>
+        <button id="closeSystemPromptBtn" class="text-gray-400 hover:text-gray-600">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="p-6">
+        <label class="block text-sm font-medium text-gray-700 mb-2">System Prompt</label>
+        <textarea
+          id="systemPromptInput"
+          rows="8"
+          placeholder="You are a helpful AI assistant..."
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        ></textarea>
+        <p class="mt-2 text-xs text-gray-500">
+          The system prompt sets the context and behavior for the AI. Leave empty for default behavior.
+        </p>
+        <div class="mt-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Preset Templates</label>
+          <div class="flex flex-wrap gap-2">
+            <button class="system-preset px-3 py-1.5 text-xs rounded border border-gray-300 hover:bg-gray-100" data-prompt="You are a helpful AI assistant. Be concise and accurate.">Default</button>
+            <button class="system-preset px-3 py-1.5 text-xs rounded border border-gray-300 hover:bg-gray-100" data-prompt="You are an expert programmer. Provide clean, well-documented code with explanations.">Coder</button>
+            <button class="system-preset px-3 py-1.5 text-xs rounded border border-gray-300 hover:bg-gray-100" data-prompt="You are a creative writing assistant. Help with storytelling, poetry, and creative content.">Creative</button>
+            <button class="system-preset px-3 py-1.5 text-xs rounded border border-gray-300 hover:bg-gray-100" data-prompt="You are a data analyst. Help analyze data, create visualizations, and explain statistical concepts.">Analyst</button>
+            <button class="system-preset px-3 py-1.5 text-xs rounded border border-gray-300 hover:bg-gray-100" data-prompt="You are a tutor. Explain concepts clearly and help with learning new topics step by step.">Tutor</button>
+          </div>
+        </div>
+      </div>
+      <div class="border-t border-gray-200 px-6 py-4 flex justify-between">
+        <button id="clearSystemPromptBtn" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+          Clear
+        </button>
+        <div class="flex gap-3">
+          <button id="cancelSystemPromptBtn" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            Cancel
+          </button>
+          <button id="saveSystemPromptBtn" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts Modal -->
+  <div id="shortcutsModal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+      <div class="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-gray-900">Keyboard Shortcuts</h2>
+        <button id="closeShortcutsBtn" class="text-gray-400 hover:text-gray-600">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="p-6">
+        <div class="space-y-3 text-sm">
+          <div class="flex justify-between"><span class="text-gray-600">New conversation</span><span><kbd class="kbd">Ctrl</kbd> + <kbd class="kbd">N</kbd></span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Open models</span><span><kbd class="kbd">Ctrl</kbd> + <kbd class="kbd">M</kbd></span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Toggle sidebar</span><span><kbd class="kbd">Ctrl</kbd> + <kbd class="kbd">B</kbd></span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Open settings</span><span><kbd class="kbd">Ctrl</kbd> + <kbd class="kbd">,</kbd></span></div>
+          <div class="flex justify-between"><span class="text-gray-600">System prompt</span><span><kbd class="kbd">Ctrl</kbd> + <kbd class="kbd">P</kbd></span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Focus input</span><span><kbd class="kbd">Ctrl</kbd> + <kbd class="kbd">/</kbd></span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Close modal</span><span><kbd class="kbd">Escape</kbd></span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Show shortcuts</span><span><kbd class="kbd">?</kbd></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const API = 'http://localhost:8000';
     const $ = (id) => document.getElementById(id);
@@ -378,6 +814,14 @@
     let onlineProvider = 'openrouter'; // 'openrouter', 'openai', 'anthropic'
     let onlineApiKeys = loadOnlineApiKeys();
     let currentModelProvider = null; // Track which provider the current model is from
+
+    // New Feature State
+    let systemPrompt = localStorage.getItem('ai-assistant-system-prompt') || '';
+    let conversationHistory = JSON.parse(localStorage.getItem('ai-assistant-conversations') || '[]');
+    let currentConversationMessages = [];
+    let totalTokens = 0;
+    let sidebarVisible = localStorage.getItem('ai-assistant-sidebar') !== 'hidden';
+    let isStreaming = false;
 
     // WebLLM Models (browser-based inference)
     let webllmModelCache = {}; // Track which models are cached in browser
@@ -2042,7 +2486,7 @@
     // Chat UI
     const chatEl = $('chatContainer');
 
-    function messageBubble({ role, text, model }) {
+    function messageBubble({ role, text, model, streaming = false }) {
       const isUser = role === 'user';
       const wrap = document.createElement('div');
       wrap.className = `mb-3 flex ${isUser ? 'justify-end' : 'justify-start'}`;
@@ -2055,12 +2499,134 @@
         header.textContent += ` · ${model}`;
       }
       const body = document.createElement('div');
-      body.className = 'whitespace-pre-wrap leading-relaxed';
-      body.textContent = text;
+
+      if (isUser) {
+        // User messages: plain text
+        body.className = 'whitespace-pre-wrap leading-relaxed';
+        body.textContent = text;
+      } else {
+        // Assistant messages: render Markdown with syntax highlighting
+        body.className = 'markdown-content leading-relaxed';
+        body.innerHTML = renderMarkdown(text);
+
+        // Add copy buttons to code blocks
+        setTimeout(() => {
+          body.querySelectorAll('.code-block-wrapper').forEach(wrapper => {
+            const copyBtn = wrapper.querySelector('.copy-code-btn');
+            const codeEl = wrapper.querySelector('code');
+            if (copyBtn && codeEl) {
+              copyBtn.addEventListener('click', () => copyCode(copyBtn, codeEl.textContent));
+            }
+          });
+          // Apply syntax highlighting
+          body.querySelectorAll('pre code').forEach(block => {
+            if (window.hljs) {
+              hljs.highlightElement(block);
+            }
+          });
+        }, 0);
+      }
+
+      // Add streaming indicator
+      if (streaming) {
+        const cursor = document.createElement('span');
+        cursor.className = 'streaming-indicator';
+        body.appendChild(cursor);
+      }
+
       bubble.appendChild(header);
       bubble.appendChild(body);
       wrap.appendChild(bubble);
+
+      // Track message for conversation history
+      if (!streaming) {
+        currentConversationMessages.push({ role, content: text, model, timestamp: Date.now() });
+        updateTokenCount(text);
+      }
+
       return wrap;
+    }
+
+    // Render Markdown with custom code block handling
+    function renderMarkdown(text) {
+      if (!window.marked) {
+        // Fallback if marked.js not loaded
+        return text.replace(/\n/g, '<br>');
+      }
+
+      // Configure marked
+      marked.setOptions({
+        breaks: true,
+        gfm: true
+      });
+
+      // Custom renderer for code blocks
+      const renderer = new marked.Renderer();
+      renderer.code = function(code, language) {
+        const lang = language || 'plaintext';
+        const escapedCode = code
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+
+        return `
+          <div class="code-block-wrapper">
+            <div class="code-block-header">
+              <span class="code-block-language">${lang}</span>
+              <button class="copy-code-btn" type="button">
+                <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                Copy
+              </button>
+            </div>
+            <pre><code class="language-${lang}">${escapedCode}</code></pre>
+          </div>
+        `;
+      };
+
+      marked.use({ renderer });
+      return marked.parse(text);
+    }
+
+    // Copy code to clipboard
+    async function copyCode(btn, code) {
+      try {
+        await navigator.clipboard.writeText(code);
+        btn.classList.add('copied');
+        btn.innerHTML = `
+          <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          Copied!
+        `;
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.innerHTML = `
+            <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+            Copy
+          `;
+        }, 2000);
+      } catch (err) {
+        toast('Failed to copy to clipboard', 'error');
+      }
+    }
+
+    // Estimate token count (rough approximation: ~4 chars per token)
+    function updateTokenCount(text) {
+      const tokens = Math.ceil(text.length / 4);
+      totalTokens += tokens;
+      $('tokenCount').textContent = totalTokens.toLocaleString();
+    }
+
+    // Reset token count
+    function resetTokenCount() {
+      totalTokens = 0;
+      $('tokenCount').textContent = '0';
     }
 
     function typingBubble() {
@@ -2156,7 +2722,12 @@
               updateCurrentModelDisplay(data.model_used);
             }
           } else {
-            const messages = [{ role: 'user', content: text }];
+            const messages = [];
+            // Add system prompt if configured
+            if (systemPrompt) {
+              messages.push({ role: 'system', content: systemPrompt });
+            }
+            messages.push({ role: 'user', content: text });
             const result = await chatOnline(messages, { model: currentActiveModel });
             reply = result.content;
             model = result.model || currentActiveModel;
@@ -2306,14 +2877,13 @@
 
       clearSearchBtn.addEventListener('click', clearSearchResults);
 
-      $('resetBtn').addEventListener('click', () => {
-        conversationId = null;
-        chatEl.innerHTML = '';
-        chatEl.appendChild(messageBubble({
-          role: 'assistant',
-          text: 'New conversation started. Ask anything to begin.'
-        }));
-        scrollToBottom(true);
+      $('resetBtn').addEventListener('click', newConversation);
+
+      // Save conversation on page unload
+      window.addEventListener('beforeunload', () => {
+        if (currentConversationMessages.length > 0) {
+          saveConversation();
+        }
       });
 
       // Modal bindings
@@ -2976,12 +3546,399 @@
     // End WebLLM Functions
     // ============================================
 
+    // ============================================
+    // New Feature Functions
+    // ============================================
+
+    // Keyboard shortcuts handler
+    function setupKeyboardShortcuts() {
+      document.addEventListener('keydown', (e) => {
+        // Ignore if typing in an input
+        const tag = document.activeElement.tagName;
+        const isInput = tag === 'INPUT' || tag === 'TEXTAREA';
+
+        // Escape - close modals
+        if (e.key === 'Escape') {
+          closeAllModals();
+          return;
+        }
+
+        // ? - show shortcuts (only when not in input)
+        if (e.key === '?' && !isInput) {
+          e.preventDefault();
+          $('shortcutsModal').classList.remove('hidden');
+          return;
+        }
+
+        // Ctrl/Cmd shortcuts
+        if (e.ctrlKey || e.metaKey) {
+          switch (e.key.toLowerCase()) {
+            case 'n': // New conversation
+              e.preventDefault();
+              newConversation();
+              break;
+            case 'm': // Open models
+              e.preventDefault();
+              $('modelModal').classList.remove('hidden');
+              loadModelsForProvider(currentProvider);
+              break;
+            case 'b': // Toggle sidebar
+              e.preventDefault();
+              toggleSidebar();
+              break;
+            case ',': // Open settings
+              e.preventDefault();
+              openSettings();
+              break;
+            case 'p': // System prompt
+              e.preventDefault();
+              openSystemPromptModal();
+              break;
+            case '/': // Focus input
+              e.preventDefault();
+              $('messageInput').focus();
+              break;
+          }
+        }
+      });
+    }
+
+    // Close all modals
+    function closeAllModals() {
+      $('modelModal').classList.add('hidden');
+      $('systemPromptModal').classList.add('hidden');
+      $('shortcutsModal').classList.add('hidden');
+      const settingsPanel = $('settingsPanel');
+      if (settingsPanel) settingsPanel.innerHTML = '';
+    }
+
+    // Toggle sidebar visibility
+    function toggleSidebar() {
+      sidebarVisible = !sidebarVisible;
+      localStorage.setItem('ai-assistant-sidebar', sidebarVisible ? 'visible' : 'hidden');
+
+      const sidebar = $('conversationSidebar');
+      const body = document.body;
+
+      if (sidebarVisible) {
+        sidebar.classList.remove('collapsed');
+        body.classList.add('sidebar-visible');
+      } else {
+        sidebar.classList.add('collapsed');
+        body.classList.remove('sidebar-visible');
+      }
+    }
+
+    // New conversation
+    function newConversation() {
+      // Save current conversation if it has messages
+      if (currentConversationMessages.length > 0) {
+        saveConversation();
+      }
+
+      // Reset state
+      conversationId = null;
+      currentConversationMessages = [];
+      chatEl.innerHTML = '';
+      resetTokenCount();
+
+      // Show welcome message
+      chatEl.appendChild(messageBubble({
+        role: 'assistant',
+        text: 'New conversation started. How can I help you?'
+      }));
+      scrollToBottom(true);
+
+      toast('New conversation started', 'success');
+      updateConversationList();
+    }
+
+    // Save current conversation to history
+    function saveConversation() {
+      if (currentConversationMessages.length === 0) return;
+
+      const conversation = {
+        id: conversationId || Date.now().toString(),
+        title: generateConversationTitle(currentConversationMessages),
+        messages: currentConversationMessages,
+        timestamp: Date.now(),
+        model: currentActiveModel
+      };
+
+      // Update or add conversation
+      const existingIndex = conversationHistory.findIndex(c => c.id === conversation.id);
+      if (existingIndex >= 0) {
+        conversationHistory[existingIndex] = conversation;
+      } else {
+        conversationHistory.unshift(conversation);
+      }
+
+      // Keep only last 50 conversations
+      if (conversationHistory.length > 50) {
+        conversationHistory = conversationHistory.slice(0, 50);
+      }
+
+      localStorage.setItem('ai-assistant-conversations', JSON.stringify(conversationHistory));
+      updateConversationList();
+    }
+
+    // Generate title from first user message
+    function generateConversationTitle(messages) {
+      const firstUserMsg = messages.find(m => m.role === 'user');
+      if (firstUserMsg) {
+        return firstUserMsg.content.slice(0, 40) + (firstUserMsg.content.length > 40 ? '...' : '');
+      }
+      return 'New conversation';
+    }
+
+    // Update conversation list in sidebar
+    function updateConversationList() {
+      const listEl = $('conversationList');
+      if (!listEl) return;
+
+      if (conversationHistory.length === 0) {
+        listEl.innerHTML = '<div class="text-xs text-gray-500 text-center py-4">No conversations yet</div>';
+        return;
+      }
+
+      listEl.innerHTML = conversationHistory.map(conv => `
+        <div class="conversation-item ${conv.id === conversationId ? 'active' : ''}" data-id="${conv.id}">
+          <div class="conversation-item-title">${escapeHtml(conv.title)}</div>
+          <div class="conversation-item-date">${formatDate(conv.timestamp)}</div>
+        </div>
+      `).join('');
+
+      // Add click handlers
+      listEl.querySelectorAll('.conversation-item').forEach(item => {
+        item.addEventListener('click', () => loadConversation(item.dataset.id));
+      });
+    }
+
+    // Load a conversation from history
+    function loadConversation(id) {
+      const conv = conversationHistory.find(c => c.id === id);
+      if (!conv) return;
+
+      // Save current first
+      if (currentConversationMessages.length > 0 && conversationId !== id) {
+        saveConversation();
+      }
+
+      // Load conversation
+      conversationId = conv.id;
+      currentConversationMessages = [...conv.messages];
+      chatEl.innerHTML = '';
+      resetTokenCount();
+
+      // Replay messages
+      conv.messages.forEach(msg => {
+        chatEl.appendChild(messageBubble({
+          role: msg.role,
+          text: msg.content,
+          model: msg.model
+        }));
+      });
+
+      scrollToBottom(true);
+      updateConversationList();
+      toast('Conversation loaded', 'info');
+    }
+
+    // Format date for display
+    function formatDate(timestamp) {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diff = now - date;
+
+      if (diff < 60000) return 'Just now';
+      if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+      if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+
+      return date.toLocaleDateString();
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Export conversation
+    function exportConversation(format) {
+      if (currentConversationMessages.length === 0) {
+        toast('No conversation to export', 'warn');
+        return;
+      }
+
+      let content, filename, mimeType;
+      const title = generateConversationTitle(currentConversationMessages);
+
+      switch (format) {
+        case 'json':
+          content = JSON.stringify({
+            title,
+            messages: currentConversationMessages,
+            exported: new Date().toISOString(),
+            model: currentActiveModel
+          }, null, 2);
+          filename = `conversation-${Date.now()}.json`;
+          mimeType = 'application/json';
+          break;
+
+        case 'markdown':
+          content = `# ${title}\n\n`;
+          content += `*Exported: ${new Date().toLocaleString()}*\n`;
+          content += `*Model: ${currentActiveModel || 'Unknown'}*\n\n---\n\n`;
+          currentConversationMessages.forEach(msg => {
+            const role = msg.role === 'user' ? '**You**' : '**Assistant**';
+            content += `${role}:\n\n${msg.content}\n\n---\n\n`;
+          });
+          filename = `conversation-${Date.now()}.md`;
+          mimeType = 'text/markdown';
+          break;
+
+        case 'txt':
+          content = `${title}\n${'='.repeat(title.length)}\n\n`;
+          content += `Exported: ${new Date().toLocaleString()}\n`;
+          content += `Model: ${currentActiveModel || 'Unknown'}\n\n`;
+          currentConversationMessages.forEach(msg => {
+            const role = msg.role === 'user' ? 'You' : 'Assistant';
+            content += `[${role}]\n${msg.content}\n\n`;
+          });
+          filename = `conversation-${Date.now()}.txt`;
+          mimeType = 'text/plain';
+          break;
+
+        default:
+          return;
+      }
+
+      // Download file
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast(`Exported as ${format.toUpperCase()}`, 'success');
+      $('exportDropdown').classList.add('hidden');
+    }
+
+    // System prompt modal functions
+    function openSystemPromptModal() {
+      $('systemPromptInput').value = systemPrompt;
+      $('systemPromptModal').classList.remove('hidden');
+    }
+
+    function saveSystemPrompt() {
+      systemPrompt = $('systemPromptInput').value.trim();
+      localStorage.setItem('ai-assistant-system-prompt', systemPrompt);
+      $('systemPromptModal').classList.add('hidden');
+
+      // Update button style to indicate active prompt
+      const btn = $('systemPromptBtn');
+      if (systemPrompt) {
+        btn.classList.add('border-purple-500', 'text-purple-600');
+        btn.classList.remove('border-gray-300', 'text-gray-600');
+      } else {
+        btn.classList.remove('border-purple-500', 'text-purple-600');
+        btn.classList.add('border-gray-300', 'text-gray-600');
+      }
+
+      toast(systemPrompt ? 'System prompt saved' : 'System prompt cleared', 'success');
+    }
+
+    // Setup export dropdown
+    function setupExportDropdown() {
+      const btn = $('exportBtn');
+      const dropdown = $('exportDropdown');
+
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('hidden');
+      });
+
+      dropdown.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          exportConversation(btn.dataset.format);
+        });
+      });
+
+      // Close on outside click
+      document.addEventListener('click', () => {
+        dropdown.classList.add('hidden');
+      });
+    }
+
+    // Setup system prompt modal
+    function setupSystemPromptModal() {
+      $('systemPromptBtn').addEventListener('click', openSystemPromptModal);
+      $('closeSystemPromptBtn').addEventListener('click', () => $('systemPromptModal').classList.add('hidden'));
+      $('cancelSystemPromptBtn').addEventListener('click', () => $('systemPromptModal').classList.add('hidden'));
+      $('saveSystemPromptBtn').addEventListener('click', saveSystemPrompt);
+      $('clearSystemPromptBtn').addEventListener('click', () => {
+        $('systemPromptInput').value = '';
+      });
+
+      // Preset buttons
+      document.querySelectorAll('.system-preset').forEach(btn => {
+        btn.addEventListener('click', () => {
+          $('systemPromptInput').value = btn.dataset.prompt;
+        });
+      });
+
+      // Update button style on load if prompt exists
+      if (systemPrompt) {
+        const btn = $('systemPromptBtn');
+        btn.classList.add('border-purple-500', 'text-purple-600');
+        btn.classList.remove('border-gray-300', 'text-gray-600');
+      }
+    }
+
+    // Setup shortcuts modal
+    function setupShortcutsModal() {
+      $('closeShortcutsBtn').addEventListener('click', () => $('shortcutsModal').classList.add('hidden'));
+    }
+
+    // Setup sidebar
+    function setupSidebar() {
+      $('toggleSidebarBtn').addEventListener('click', toggleSidebar);
+      $('newChatBtn').addEventListener('click', newConversation);
+
+      // Apply initial state
+      const sidebar = $('conversationSidebar');
+      const body = document.body;
+
+      if (!sidebarVisible) {
+        sidebar.classList.add('collapsed');
+        body.classList.remove('sidebar-visible');
+      }
+
+      // Load conversation list
+      updateConversationList();
+    }
+
+    // ============================================
+    // End New Feature Functions
+    // ============================================
+
     // Init
     (async function init() {
       await Promise.all([loadHardware(), updateHealthStatus()]);
 
       // Initialize settings panel
       initSettingsPanel();
+
+      // Initialize new features
+      setupKeyboardShortcuts();
+      setupSidebar();
+      setupExportDropdown();
+      setupSystemPromptModal();
+      setupShortcutsModal();
 
       // Check if this is first run
       const savedProvider = localStorage.getItem('ai-assistant-provider');
