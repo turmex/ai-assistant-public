@@ -1,6 +1,6 @@
 # AI Assistant - WebLLM & Local LLM Chat
 
-A production-ready AI assistant that runs entirely in your browser using WebLLM (WebGPU), with Ollama as an optional backend. Features intelligent model management, hardware-aware recommendations, and TOON format for optimized token usage.
+A production-ready AI assistant that runs entirely in your browser using WebLLM (WebGPU), with Ollama as an optional backend. Features intelligent model management, hardware-aware recommendations, HuggingFace integration, multi-provider support, and TOON format for optimized token usage.
 
 ## Features
 
@@ -16,12 +16,47 @@ A production-ready AI assistant that runs entirely in your browser using WebLLM 
 - **Smart Detection**: Hardware-aware model recommendations
 - **Auto-Download**: One-click model downloads from Ollama library
 - **URL Search**: Find and download any model from Ollama Hub
+- **40+ Model Catalog**: Comprehensive model catalog with detailed metadata
+
+### HuggingFace Integration
+- **Dynamic Catalog**: Fetches 50+ models from HuggingFace API
+- **Model Search by URL**: Paste any HuggingFace model URL to search
+- **Compatibility Checking**: Automatic hardware compatibility assessment
+- **Ollama Mapping**: Detects if HF models are available in Ollama format
+- **Cached Results**: 1-hour TTL caching for performance
+
+### Online LLM Providers
+- **OpenRouter**: Access 300+ models (GPT-4, Claude, Mistral, etc.)
+- **OpenAI**: ChatGPT API integration
+- **Anthropic**: Claude API integration
+- **API Key Management**: Secure local storage with base64 obfuscation
 
 ### Token Optimization (TOON)
 - **~40% Token Reduction**: Compress conversation history using TOON format
 - **Toggle On/Off**: Enable/disable with one click
 - **Automatic**: Works transparently with WebLLM chat
 - **Persistent**: Preference saved across sessions
+
+### Multi-Fallback Chat System
+- **Robust Chat**: Three-tier fallback ensures responses even with context issues
+  1. Full context with `/api/chat`
+  2. Latest message only with `/api/chat`
+  3. Flattened prompt with `/api/generate`
+- **Context Sanitization**: Handles complex message formats automatically
+- **Error Recovery**: Detailed logging with breadcrumbs
+
+### Hardware Detection
+- **Auto-Detect Mac Hardware**: Chip type (M1/M2/M3/Intel), RAM, CPU cores
+- **Smart Recommendations**: Optimal model based on system specs
+- **Performance Estimates**: Speed predictions (tokens/second) per model
+- **All Compatible Models**: Lists every model you can run with performance indicators
+- **Fallback Safety**: Defaults to `llama3.2:1b` if detection fails
+
+### Conversation Management
+- **Full History**: SQLite-backed conversation storage
+- **Context Window**: Last 10 messages for LLM context
+- **Intent Detection**: Keyword-based detection for tools (Gmail, Calendar, Salesforce)
+- **Multi-User Framework**: Database supports multiple users (MVP uses single user)
 
 ### One-Click Launch
 - **Single File**: Double-click `🚀 Launch AI Assistant.command`
@@ -97,6 +132,7 @@ Click the **Models** button to:
 - Load/Unload models
 - Clear model cache
 - Check model sizes and performance ratings
+- Search by Ollama or HuggingFace URL
 
 ### Using TOON Format
 
@@ -138,14 +174,20 @@ If WebLLM fails to load:
 
 ### Ollama Models (Server)
 
-| Model | Size | Performance |
-|-------|------|-------------|
-| llama3.2:1b | 1.3GB | 🟢 Excellent |
-| llama3.2:3b | 2.0GB | 🟢 Excellent |
-| phi3:mini | 2.3GB | 🟢 Excellent |
-| mistral:7b | 4.1GB | 🟡 Good |
-| llama3.1:8b | 4.7GB | 🟡 Good |
-| gemma2:9b | 5.5GB | 🟠 Acceptable |
+| Model | Size | Parameters | Performance | Quality |
+|-------|------|------------|-------------|---------|
+| llama3.2:1b | 1.3GB | 1B | Fastest | Basic |
+| llama3.2:3b | 2.0GB | 3B | Fast | Medium |
+| phi3:mini | 2.3GB | 3.8B | Fast | Medium |
+| mistral:7b | 4.1GB | 7B | Fast | High |
+| llama3.1:8b | 4.7GB | 8B | Good | High |
+| gemma2:9b | 5.5GB | 9B | Good | High |
+| qwen2:7b | 4.4GB | 7B | Good | High |
+| codellama:7b | 3.8GB | 7B | Good | High |
+| deepseek-r1:7b | 4.7GB | 7B | Good | High |
+| mixtral:8x7b | 26.0GB | 8x7B | Slow | High |
+
+**Full catalog includes 30+ models** including Llama 3.1/3.2, Mistral, Phi 3, Gemma 2, Qwen 2, DeepSeek, CodeLlama, and more.
 
 ## Project Structure
 
@@ -153,34 +195,64 @@ If WebLLM fails to load:
 ai-assistant/
 ├── frontend-v2/
 │   └── index.html          # Main UI (WebLLM + Ollama)
+├── frontend/
+│   └── src/                 # Modular JS components
+│       ├── webllm-integration.js
+│       ├── provider-toggle.js
+│       ├── api-key-manager.js
+│       ├── online-llm-client.js
+│       └── settings-panel.js
 ├── backend/
-│   ├── main.py             # FastAPI server
-│   ├── requirements.txt    # Python dependencies
-│   └── src/                # Source modules
+│   ├── main.py              # FastAPI server
+│   ├── database.py          # SQLAlchemy ORM & models
+│   ├── conversation_manager.py  # Chat history & intent detection
+│   ├── hardware_detector.py # Mac hardware detection
+│   ├── ollama_integration.py    # Ollama model catalog
+│   ├── huggingface_integration.py # HuggingFace API
+│   ├── shared_utils.py      # Common utilities
+│   ├── logger.py            # Workflow logging
+│   └── requirements.txt     # Python dependencies
+├── config/
+│   └── provider-config.json # Provider configuration
+├── tests/
+│   └── model_management/    # API tests
 ├── 🚀 Launch AI Assistant.command  # One-click launcher
-├── run.command             # Alternative launcher
-└── README.md               # This file
+├── run.command              # Alternative launcher
+└── README.md                # This file
 ```
 
 ## API Endpoints
 
 When running with Ollama backend:
 
-### Health & Info
-- `GET /health` - System health check
-- `GET /hardware` - Hardware detection
+### Health & System Info
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | System health check with hardware info |
+| `/hardware` | GET | Detailed hardware info & compatible models |
+| `/api` | GET | API information |
+| `/` | GET | Serve frontend |
 
-### Models
-- `GET /models` - List all Ollama models
-- `GET /models/available` - Compatible models
-- `GET /models/downloaded` - Installed models
-- `POST /models/download` - Download a model
-- `DELETE /models/{name}` - Delete a model
+### Model Management
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/models` | GET | List downloaded Ollama models |
+| `/models/available` | GET | Get ALL models (Ollama + HuggingFace) |
+| `/models/downloaded` | GET | Get locally installed models |
+| `/models/download` | POST | Download model from Ollama |
+| `/models/download-from-hf` | POST | Download from HuggingFace URL |
+| `/models/search-hf` | POST | Search HuggingFace for model info |
+| `/models/search-url` | POST | Unified search (Ollama or HF URL) |
+| `/models/{name}` | DELETE | Delete/unload a model |
 
-### Chat
-- `POST /chat` - Send message (Ollama)
-- `POST /conversations/new` - New conversation
-- `GET /conversations/{id}` - Get history
+### Chat & Conversations
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/chat` | POST | Send message with multi-fallback |
+| `/conversations/new` | POST | Create new conversation |
+| `/conversations/{id}` | GET | Get conversation history |
+| `/conversations/{id}` | DELETE | Delete conversation |
+| `/conversations` | GET | List all conversations (limit: 20) |
 
 ## Technical Details
 
@@ -189,6 +261,12 @@ When running with Ollama backend:
 - WebGPU for GPU acceleration
 - IndexedDB/Cache API for model storage
 - Web Workers for non-blocking inference
+
+### Backend Architecture
+- **FastAPI 0.109.0**: Async web framework
+- **SQLAlchemy 2.0.25**: ORM with SQLite/PostgreSQL
+- **httpx 0.26.0**: Async HTTP client
+- **Pydantic 2.5.3**: Data validation
 
 ### TOON Format
 Based on [toon-format/toon](https://github.com/toon-format/toon):
@@ -202,6 +280,16 @@ Based on [toon-format/toon](https://github.com/toon-format/toon):
 - Optimized for reduced eye strain
 - Consistent styling across all components
 
+### Database Schema
+
+The backend uses SQLite with the following tables:
+
+- **users**: Multi-user support (id, email, created_at)
+- **conversations**: Chat history with JSON messages
+- **tool_connections**: OAuth connections (Gmail, Calendar, Salesforce)
+- **workflows**: User-defined automation workflows
+- **workflow_executions**: Workflow run history & logs
+
 ## Configuration
 
 ### Environment Variables (.env)
@@ -209,6 +297,7 @@ Based on [toon-format/toon](https://github.com/toon-format/toon):
 ```bash
 # Ollama
 OLLAMA_BASE_URL=http://localhost:11434
+DEFAULT_LOCAL_MODEL=llama3.1
 
 # Database
 DATABASE_URL=sqlite:///./ai_assistant.db
@@ -217,12 +306,59 @@ DATABASE_URL=sqlite:///./ai_assistant.db
 HOST=0.0.0.0
 PORT=8000
 DEBUG=true
+
+# OAuth (Future)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+SALESFORCE_CLIENT_ID=
+SALESFORCE_CLIENT_SECRET=
+
+# Security
+SECRET_KEY=<your-secret-key>
+```
+
+### Provider Configuration (provider-config.json)
+
+```json
+{
+  "default_provider": "webllm",
+  "providers": {
+    "webllm": {
+      "enabled": true,
+      "default_model": "Llama-3.2-1B-Instruct-q4f16_1-MLC",
+      "features": {
+        "streaming": true,
+        "offline_support": true,
+        "privacy_focused": true
+      }
+    },
+    "ollama": {
+      "enabled": true,
+      "base_url": "http://localhost:11434",
+      "default_model": "llama3.2:1b",
+      "features": {
+        "streaming": true,
+        "large_models": true,
+        "higher_quality": true
+      }
+    }
+  },
+  "fallback_strategy": {
+    "enabled": true,
+    "order": ["webllm", "ollama"]
+  },
+  "toon_optimization": {
+    "enabled": false,
+    "auto_enable_threshold": 500
+  }
+}
 ```
 
 ### LocalStorage Keys
 
 - `ai-assistant-provider` - Current provider (webllm/ollama)
 - `ai-assistant-toon` - TOON enabled state
+- `ai-assistant-api-keys` - Encrypted API keys
 - `webllm-cached-{model}` - Model cache status
 
 ## Troubleshooting
@@ -256,6 +392,12 @@ pkill ollama && ollama serve
 - Re-download from Available Models
 - Check Ollama storage: `~/.ollama/models`
 
+### Chat Returns Empty Response
+The multi-fallback system will try three different approaches. If all fail:
+- Check Ollama is running and responsive
+- Verify model is fully downloaded
+- Check server logs for specific error
+
 ## Performance Tips
 
 1. **Use TOON** for long conversations
@@ -263,13 +405,44 @@ pkill ollama && ollama serve
 3. **Enable GPU** in Chrome settings
 4. **Close other GPU apps** when using WebLLM
 5. **Use Ollama** for models >3B parameters
+6. **Apple Silicon users** get 2-3x speed improvement
+
+### Performance Estimates
+
+| RAM | Apple Silicon | Intel |
+|-----|--------------|-------|
+| 8GB | 1-3B models | 1-2B models |
+| 16GB | 1-8B models | 1-5B models |
+| 32GB | 1-13B models | 1-8B models |
+| 64GB+ | All models | Most models |
+
+## Security Notes
+
+- **API Keys**: Stored in localStorage with base64 obfuscation (not encryption)
+- **CORS**: Permissive for MVP - restrict in production
+- **Authentication**: Single-user MVP - OAuth framework ready
+- **Input Sanitization**: All chat context sanitized before LLM
+- **No Server Secrets**: No sensitive data on backend
+
+## Upcoming Features
+
+Based on database schema and code structure:
+
+- **MCP Tool Integration**: Gmail, Calendar, Salesforce
+- **OAuth Authentication**: Google, Salesforce
+- **Workflow Automation**: Create and schedule workflows
+- **Multi-user Support**: Activate existing framework
+- **Advanced Intent Detection**: ML-based (currently keyword-based)
+- **Streaming Responses**: Real-time token streaming
+- **Token Analytics**: Usage tracking and optimization
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Submit a pull request
+4. Run tests: `cd tests && python -m pytest`
+5. Submit a pull request
 
 ## License
 
@@ -277,8 +450,10 @@ MIT License - Use freely for personal or commercial projects.
 
 ---
 
-**Built with**: WebLLM, FastAPI, Ollama, Tailwind CSS, and WebGPU
+**Built with**: WebLLM, FastAPI, Ollama, HuggingFace, Tailwind CSS, SQLAlchemy, WebGPU
 
 **Token Optimization**: TOON Format for ~40% reduction
 
 **Privacy**: All inference runs locally on your device
+
+**Model Sources**: Ollama Library (30+ models) + HuggingFace Hub (50+ models)
